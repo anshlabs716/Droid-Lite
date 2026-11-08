@@ -19,7 +19,6 @@ package com.machiav3lli.fdroid.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.navigation3.runtime.NavKey
 import com.machiav3lli.fdroid.R
 import com.machiav3lli.fdroid.data.content.Preferences
 import com.machiav3lli.fdroid.ui.compose.icons.Phosphor
@@ -88,24 +87,3 @@ sealed class NavItem(
         })
 }
 
-@Serializable
-sealed class NavRoute : NavKey {
-    @Serializable
-    data object Onboarding : NavRoute()
-
-    @Serializable
-    data class Main(val page: Int = Preferences[Preferences.Key.DefaultTab].index) :
-        NavRoute()
-
-    @Serializable
-    data class App(val packageName: String) : NavRoute()
-
-    @Serializable
-    data class SortFilter(val page: String) : NavRoute()
-
-    @Serializable
-    data class Search(val query: String) : NavRoute()
-
-    @Serializable
-    data class Prefs(val page: Int = 0) : NavRoute()
-}

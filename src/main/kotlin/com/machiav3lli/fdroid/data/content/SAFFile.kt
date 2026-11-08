@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
-import com.anggrayudi.storage.StorageFile
 import com.machiav3lli.fdroid.R
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -38,7 +37,7 @@ class SAFFile(context: Context, val uri: Uri) {
         return try {
             mContext.contentResolver.delete(uri, null, null) != 0
         } catch (e: UnsupportedOperationException) {
-            StorageFile.from(mContext, uri)?.delete() ?: false
+            false
         }
     }
 

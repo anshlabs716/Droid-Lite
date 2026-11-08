@@ -17,11 +17,9 @@ import com.machiav3lli.fdroid.data.database.entity.RBLog
 import com.machiav3lli.fdroid.data.database.entity.RBLogs
 import com.machiav3lli.fdroid.data.repository.PrivacyRepository
 import com.machiav3lli.fdroid.manager.network.Downloader
-import org.koin.android.annotation.KoinWorker
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
-@KoinWorker
 class RBWorker(
     private val context: Context,
     params: WorkerParameters,

@@ -21,7 +21,6 @@ import com.machiav3lli.fdroid.data.database.entity.CategoryDetails
 import com.machiav3lli.fdroid.data.database.entity.EmbeddedProduct
 import com.machiav3lli.fdroid.data.database.entity.Extras
 import com.machiav3lli.fdroid.data.database.entity.Installed
-import com.machiav3lli.fdroid.data.database.entity.MonthlyPackageSum
 import com.machiav3lli.fdroid.data.database.entity.RBLog
 import com.machiav3lli.fdroid.data.database.entity.Release
 import com.machiav3lli.fdroid.data.database.entity.Repository
@@ -43,7 +42,6 @@ import com.machiav3lli.fdroid.utils.extension.Quadruple
 import com.machiav3lli.fdroid.utils.extension.android.Android
 import com.machiav3lli.fdroid.utils.extension.combine
 import com.machiav3lli.fdroid.utils.extension.grantedPermissions
-import com.machiav3lli.fdroid.utils.extension.text.intToIsoDate
 import com.machiav3lli.fdroid.utils.extension.text.nullIfEmpty
 import com.machiav3lli.fdroid.utils.findSuggestedProduct
 import com.machiav3lli.fdroid.utils.generatePermissionGroups
@@ -295,50 +293,6 @@ class AppPageVM(
         viewModelScope,
         SharingStarted.Lazily,
         PrivacyPanelState()
-    )
-
-    // Download stats
-    private val downloadStatsInfo = packageName
-        .flatMapLatest { pn ->
-            combine(
-                privacyRepo.getClientSumDownloadStats(pn),
-                privacyRepo.getLatestDownloadStats(pn),
-                if (Android.sdk(Build.VERSION_CODES.R))
-                    privacyRepo.getSumDownloadOrder(pn)
-                else privacyRepo.getSumDownloadOrderLegacy(pn)
-            ) { stats, latests, order ->
-                Quadruple(
-                    stats.find { it.client == "_total" }?.totalCount ?: 0,
-                    latests.filter { it.client == "_total" }.sumOf { it.count },
-                    stats.filterNot { it.client == "_total" || it.client == "_unknown" }
-                        .maxByOrNull { it.totalCount }?.client ?: "",
-                    order
-                )
-            }
-        }.distinctUntilChanged()
-
-    private val downloadStatsMonthlyMap = packageName
-        .flatMapLatest { pn -> privacyRepo.getMonthlyDownloadStats(pn) }
-        .map {
-            it.groupBy { stats -> stats.yearMonth.intToIsoDate() }
-                .mapValues { entry ->
-                    entry.value.groupBy(MonthlyPackageSum::client)
-                        .mapValues { stats -> stats.value.sumOf { stat -> stat.totalCount } }
-                }
-        }.distinctUntilChanged()
-
-    val downloadStatsState: StateFlow<DownloadStatsState> = combine(
-        downloadStatsInfo,
-        downloadStatsMonthlyMap,
-    ) { info, monthly ->
-        DownloadStatsState(
-            info = info,
-            monthlyMap = monthly,
-        )
-    }.stateIn(
-        viewModelScope,
-        SharingStarted.Lazily,
-        DownloadStatsState()
     )
 
     // Actions
@@ -663,11 +617,6 @@ data class PrivacyPanelState(
     val privacyData: PrivacyData = PrivacyData(),
     val privacyNote: PrivacyNote = PrivacyNote(),
     val rbLogs: Map<String, RBLog> = emptyMap(),
-)
-
-data class DownloadStatsState(
-    val info: Quadruple<Long, Long, String, Int> = Quadruple(0L, 0L, "", 9999),
-    val monthlyMap: Map<String, Map<String, Long>> = emptyMap(),
 )
 
 data class CoreAppState(

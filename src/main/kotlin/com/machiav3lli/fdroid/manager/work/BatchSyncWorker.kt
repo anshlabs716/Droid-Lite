@@ -96,7 +96,6 @@ class BatchSyncWorker(
                 // Run additional sync tasks
                 if (succeeded > 0) {
                     RBWorker.fetchRBLogs()
-                    DownloadStatsWorker.enqueuePeriodic()
                 }
 
                 Result.success(

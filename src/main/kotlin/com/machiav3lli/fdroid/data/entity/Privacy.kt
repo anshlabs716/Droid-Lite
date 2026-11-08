@@ -3,7 +3,7 @@ package com.machiav3lli.fdroid.data.entity
 import android.content.pm.PermissionInfo
 import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.machiav3lli.backup.ui.compose.icons.phosphor.GitPullRequest
+import com.machiav3lli.fdroid.ui.compose.icons.phosphor.GitPullRequest
 import com.machiav3lli.fdroid.IDENTIFICATION_DATA_PERMISSIONS
 import com.machiav3lli.fdroid.PERMISSION_GROUP_INTERNET
 import com.machiav3lli.fdroid.PHYSICAL_DATA_PERMISSIONS

@@ -6,9 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.ksp)
-    alias(libs.plugins.koin)
     alias(libs.plugins.shizuku.refine)
-    alias(libs.plugins.stability.analyzer)
     alias(libs.plugins.gradle.toolchains) apply false
 }
 
@@ -31,11 +29,18 @@ android {
     compileSdkMinor = 1
 
     defaultConfig {
-        applicationId = "com.machiav3lli.fdroid"
+        applicationId = "com.droidlite.client"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1304
-        versionName = "1.3.3"
+        versionCode = 1
+        versionName = "1.0.0-droidlite"
+
+        // Droid-Lite: trimmed locale set (trade-off documented in PLAN.md).
+        // Cuts resources.arsc from ~2 MB to a fraction; upstream Neo Store ships 62.
+        resourceConfigurations += listOf(
+            "en", "de", "es", "fr", "it", "pt-rBR", "pt-rPT", "ru", "uk",
+            "pl", "nl", "tr", "ar", "zh-rCN", "zh-rTW", "ja", "ko", "hi", "id",
+        )
     }
 
     compileOptions {
@@ -53,18 +58,18 @@ android {
             isMinifyEnabled = false
             isShrinkResources = false
             applicationIdSuffix = ".debug"
-            resValue("string", "application_name", "Neo Store - Debug")
+            resValue("string", "application_name", "Droid-Lite Debug")
         }
         register("neo") {
             isMinifyEnabled = false
             isShrinkResources = false
             applicationIdSuffix = ".neo"
-            resValue("string", "application_name", "Neo Store - Neo")
+            resValue("string", "application_name", "Droid-Lite Neo")
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            resValue("string", "application_name", "Neo Store")
+            resValue("string", "application_name", "Droid-Lite")
         }
         all {
             isCrunchPngs = false
@@ -128,7 +133,7 @@ android {
         variant.outputs.forEach { output ->
             if (output is com.android.build.api.variant.impl.VariantOutputImpl) {
                 output.outputFileName.set(
-                    "Neo_Store_${output.versionName.get()}_${variant.buildType}.apk"
+                    "Droid_Lite_${output.versionName.get()}_${variant.buildType}.apk"
                 )
             }
         }
@@ -139,31 +144,19 @@ dependencies {
     // Core
     implementation(libs.kotlin.stdlib)
     implementation(libs.ksp)
-    implementation(libs.preference)
     implementation(libs.activity.compose)
     implementation(libs.collections.immutable)
-    implementation(libs.datetime)
     coreLibraryDesugaring(libs.jdk.desugar)
     //debugImplementation(libs.leakcanary)
 
-    // use the new WorkInfo.stopReason (report stopReason), setNextScheduleTimeOverride (Precise scheduling), Configuration.Builder.setContentUriTriggerWorkersLimit (limit for content uri workers)
     implementation(libs.work.runtime)
-    implementation(libs.biometric)
-    implementation(libs.material)
 
-    // Coil, Ktor, Okhttp, Zxing
+    // Coil, OkHttp
     api(platform(libs.coil.bom))
     implementation(libs.coil)
-    implementation(libs.coil.ktor)
     implementation(libs.coil.okhttp)
     implementation(libs.coil.compose)
-    implementation(libs.zxing.core)
-    implementation(libs.ktor.core)
-    implementation(libs.ktor.okhttp)
-    implementation(libs.ktor.client.encoding)
-    implementation(libs.ktor.logging)
     implementation(libs.okhttp)
-    implementation(libs.okhttp.logging)
 
     // Koin
     api(platform(libs.koin.bom))
@@ -172,25 +165,15 @@ dependencies {
     implementation(libs.koin.workmanager)
     implementation(libs.koin.compose)
     implementation(libs.koin.startup)
-    implementation(libs.koin.annotations)
 
-    // JSON, Markdown, LibSu
+    // JSON, LibSu, Shizuku
     implementation(libs.libsu.core)
     implementation(libs.shizuku.api)
     implementation(libs.shizuku.provider)
     implementation(libs.shizuku.refine)
     compileOnly(libs.shizuku.hidden)
     implementation(libs.hiddenapi.bypass)
-    implementation(libs.jackson.core)
     implementation(libs.serialization.json)
-    implementation(libs.markdown)
-    implementation(libs.compose.html)
-    implementation(libs.material.kolor)
-    implementation(libs.vico.compose)
-    implementation(libs.vico.compose.m3)
-
-    // Storage
-    implementation(libs.simple.storage)
 
     // Coroutines / Lifecycle
     implementation(libs.lifecycle)
@@ -208,17 +191,9 @@ dependencies {
     implementation(libs.compose.ui)
     implementation(libs.compose.foundation)
     implementation(libs.compose.material3)
-    implementation(libs.compose.material3.navigationsuite)
-    implementation(libs.compose.adaptive)
-    implementation(libs.compose.adaptive.layout)
-    implementation(libs.compose.adaptive.navigation)
     implementation(libs.compose.animation)
-    implementation(libs.compose.navigation)
-    implementation(libs.compose.navigation3)
-    implementation(libs.compose.navigation3.ui)
-    implementation(libs.accompanist.permissions)
-    debugImplementation(libs.compose.ui.tooling)
     implementation(libs.compose.ui.tooling.preview)
+    debugImplementation(libs.compose.ui.tooling)
 
     // Test
     testImplementation(libs.kotlin.test)

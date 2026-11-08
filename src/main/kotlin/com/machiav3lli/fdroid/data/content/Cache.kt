@@ -10,7 +10,7 @@ import android.provider.OpenableColumns
 import android.system.Os
 import android.util.Log
 import androidx.core.content.FileProvider
-import com.anggrayudi.storage.StorageFile
+import com.machiav3lli.fdroid.utils.SafTree
 import com.machiav3lli.fdroid.R
 import com.machiav3lli.fdroid.utils.getDownloadFolder
 import com.machiav3lli.fdroid.utils.isDownloadExternal
@@ -60,10 +60,6 @@ object Cache {
 
     fun getReleaseFile(context: Context, cacheFileName: String): File {
         return File(ensureExtCacheDir(context, "releases"), cacheFileName)
-    }
-
-    fun getDownloadStatsFile(context: Context, cacheFileName: String): File {
-        return File(ensureExtCacheDir(context, "download_stats"), cacheFileName)
     }
 
     fun File.getReleaseFileUri(context: Context): Uri {
@@ -170,47 +166,36 @@ object Cache {
     }
 
     private fun cleanupDir(
-        dir: StorageFile?,
+        dir: SafTree?,
         hours: Int,
         fileExtension: String? = null
     ) {
         val olderThan = System.currentTimeMillis() / 1000L - hours * 60 * 60
         dir?.list()?.forEach { file ->
-            if (fileExtension != null && file.name?.endsWith(
+            if (fileExtension != null && !file.name.endsWith(
                     ".$fileExtension",
                     ignoreCase = true
-                ) == false
+                )
             ) {
                 return@forEach
             }
 
-            val older = hours <= 0 || run {
-                try {
-                    val stat = Os.lstat(file.absolutePath)
-                    stat.st_atime < olderThan
-                } catch (e: Exception) {
-                    false
-                }
-            }
+            val older = hours <= 0
             if (older) {
-                if (file.isDirectory) {
-                    cleanupDir(file, hours)
-                    if (file.isDirectory) {
-                        file.delete()
-                    }
-                } else {
-                    file.delete()
-                }
+                dir.delete(file)
             }
         }
     }
 
-    fun eraseDownload(context: Context, fileName: String) =
-        getPartialReleaseFile(context, fileName).let {
+    fun eraseDownload(context: Context, fileName: String): Boolean {
+        val localErased = getPartialReleaseFile(context, fileName).let {
             if (it.exists()) it else getReleaseFile(context, fileName)
-        }.delete() && (!isDownloadExternal || context.getDownloadFolder()?.let { downloadFolder ->
-            downloadFolder.list().find { it.name == fileName }?.delete()
-        } ?: true)
+        }.delete()
+        if (!isDownloadExternal) return localErased
+        val folder = context.getDownloadFolder() ?: return true
+        val child = folder.find(fileName) ?: return true
+        return folder.delete(child)
+    }
 
     class Provider : FileProvider(R.xml.cache_provider) {
         companion object {

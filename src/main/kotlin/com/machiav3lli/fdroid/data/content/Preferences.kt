@@ -20,9 +20,6 @@ import com.machiav3lli.fdroid.utils.amInstalled
 import com.machiav3lli.fdroid.utils.extension.android.Android
 import com.machiav3lli.fdroid.utils.getHasSystemInstallPermission
 import com.machiav3lli.fdroid.utils.hasShizukuOrSui
-import com.machiav3lli.fdroid.utils.isBiometricLockAvailable
-import com.materialkolor.Contrast
-import com.materialkolor.PaletteStyle
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,7 +40,6 @@ data object Preferences : OnSharedPreferenceChangeListener {
         Key.DefaultTab,
         Key.KidsMode,
         Key.DownloadShowDialog,
-        Key.ActionLockDialog,
         Key.UpdatedApps,
         Key.NewApps,
         Key.PermissionWeightsKey,
@@ -79,7 +75,6 @@ data object Preferences : OnSharedPreferenceChangeListener {
         Key.DisableAutoupdateOnNewCriticalPermissions,
         Key.DisableAutoupdateOnNonReproducibleBuilds,
         Key.RBProvider,
-        Key.DLStatsProvider,
         Key.PackagesBlocklist,
         // Installation
         Key.KeepInstallNotification,
@@ -369,9 +364,6 @@ data object Preferences : OnSharedPreferenceChangeListener {
         data object DownloadShowDialog :
             Key<Boolean>("download_show_dialog", Value.BooleanValue(false))
 
-        data object ActionLockDialog :
-            Key<ActionLock>("action_lock", Value.EnumerationValue(ActionLock.None))
-
         data object ReleasesCacheRetention : Key<Int>("releases_cache_retention", Value.IntValue(1))
 
         data object ImagesCacheRetention : Key<Int>("images_cache_retention", Value.IntValue(14))
@@ -408,12 +400,6 @@ data object Preferences : OnSharedPreferenceChangeListener {
         data object RBProvider : Key<Preferences.RBProvider>(
             "rb_provider", Value.EnumerationValue(
                 Preferences.RBProvider.IzzyOnDroid
-            )
-        )
-
-        data object DLStatsProvider : Key<Preferences.DLStatsProvider>(
-            "dlstats_provider", Value.EnumerationValue(
-                Preferences.DLStatsProvider.IzzyOnDroid
             )
         )
 
@@ -717,9 +703,6 @@ data object Preferences : OnSharedPreferenceChangeListener {
                 Value.PermissionWeightsValue(PermissionWeights.DEFAULT)
             )
 
-        data object DownloadStatsLastModified :
-            Key<String>("last_modified_downloadstats", Value.StringValue(""))
-
         data object SearchHistory :
             Key<Set<String>>("search_history", Value.StringSetValue(emptySet()))
     }
@@ -785,20 +768,6 @@ data object Preferences : OnSharedPreferenceChangeListener {
         data object Shizuku : Installer("shizuku", InstallerType.SHIZUKU)
     }
 
-    sealed class ActionLock(override val valueString: String, val order: Order) :
-        Enumeration<ActionLock> {
-        override val values: List<ActionLock>
-            get() = buildList {
-                addAll(listOf(None, Device))
-                if (NeoApp.context.isBiometricLockAvailable())
-                    add(Biometric)
-            }
-
-        data object None : ActionLock("none", Order.NAME)
-        data object Device : ActionLock("device", Order.DATE_ADDED)
-        data object Biometric : ActionLock("biometric", Order.LAST_UPDATE)
-    }
-
     @Immutable
     @Serializable
     sealed class NeoTheme {
@@ -832,11 +801,11 @@ data object Preferences : OnSharedPreferenceChangeListener {
             override val seedColor: Long
                 get() = 0xFF336644
             override val paletteStyle: Int
-                get() = PaletteStyle.TonalSpot.ordinal
+                get() = 0
             override val blackOnDark: Boolean
                 get() = false
             override val contrast: Double
-                get() = Contrast.Default.value
+                get() = 0.0
         }
 
         @Serializable
@@ -850,11 +819,11 @@ data object Preferences : OnSharedPreferenceChangeListener {
             override val seedColor: Long
                 get() = 0xFF336644
             override val paletteStyle: Int
-                get() = PaletteStyle.TonalSpot.ordinal
+                get() = 0
             override val blackOnDark: Boolean
                 get() = true
             override val contrast: Double
-                get() = Contrast.Default.value
+                get() = 0.0
         }
 
         @Serializable
@@ -868,11 +837,11 @@ data object Preferences : OnSharedPreferenceChangeListener {
             override val seedColor: Long
                 get() = 0xFF336644
             override val paletteStyle: Int
-                get() = PaletteStyle.TonalSpot.ordinal
+                get() = 0
             override val blackOnDark: Boolean
                 get() = false
             override val contrast: Double
-                get() = Contrast.Default.value
+                get() = 0.0
         }
     }
 
@@ -915,26 +884,6 @@ data object Preferences : OnSharedPreferenceChangeListener {
         data object OBFUSK : RBProvider("obfusk") {
             override val url: String
                 get() = "https://apt.izzysoft.de/fdroid/rbtlogs/obfusk.json"
-        }
-    }
-
-    sealed class DLStatsProvider(override val valueString: String) : Enumeration<DLStatsProvider> {
-        override val values: List<DLStatsProvider>
-            get() = persistentListOf(
-                None,
-                IzzyOnDroid,
-            )
-
-        abstract val url: String
-
-        data object None : DLStatsProvider("none") {
-            override val url: String
-                get() = ""
-        }
-
-        data object IzzyOnDroid : DLStatsProvider("iod") {
-            override val url: String
-                get() = "https://dlstats.izzyondroid.org/iod-stats-collector"
         }
     }
 

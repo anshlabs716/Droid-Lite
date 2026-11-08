@@ -49,7 +49,6 @@ fun PrefsPersonalPage() {
         Preferences.Key.DefaultTab,
         Preferences.Key.KidsMode,
         Preferences.Key.DownloadShowDialog,
-        Preferences.Key.ActionLockDialog,
         Preferences.Key.UpdatedApps,
         Preferences.Key.NewApps,
         Preferences.Key.PermissionWeightsKey,

@@ -1,4 +1,4 @@
-package com.machiav3lli.backup.ui.compose.icons.phosphor
+package com.machiav3lli.fdroid.ui.compose.icons.phosphor
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathFillType.Companion.NonZero

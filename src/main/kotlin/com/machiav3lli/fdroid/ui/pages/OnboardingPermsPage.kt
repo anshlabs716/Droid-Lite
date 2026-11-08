@@ -35,8 +35,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.rememberPermissionState
+import androidx.core.app.ActivityCompat
 import com.machiav3lli.fdroid.R
 import com.machiav3lli.fdroid.data.content.Preferences
 import com.machiav3lli.fdroid.data.entity.ColoringState
@@ -53,7 +52,6 @@ import com.machiav3lli.fdroid.utils.needsBatteryOptimizationWhitelist
 import com.machiav3lli.fdroid.utils.needsInstallPackagesPermission
 import com.machiav3lli.fdroid.utils.needsNotificationPermission
 
-@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun OnboardingPermsPage(onComplete: () -> Unit) {
     val context = LocalContext.current
@@ -62,9 +60,9 @@ fun OnboardingPermsPage(onComplete: () -> Unit) {
         mutableStateOf(DialogKey.None)
     }
 
-    val permissionStatePostNotifications = if (Android.sdk(Build.VERSION_CODES.TIRAMISU)) {
-        rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS)
-    } else null
+    val notifLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { }
     val ignored by remember { mutableIntStateOf(0) }
     val permissionsList = remember {
         mutableStateMapOf<Permission, () -> Unit>()
@@ -80,7 +78,7 @@ fun OnboardingPermsPage(onComplete: () -> Unit) {
             } else remove(Permission.BatteryOptimization)
             if (context.needsNotificationPermission()) {
                 putIfAbsent(Permission.PostNotifications) {
-                    permissionStatePostNotifications?.launchPermissionRequest()
+                    notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
             } else remove(Permission.PostNotifications)
             if (context.needsInstallPackagesPermission()) {

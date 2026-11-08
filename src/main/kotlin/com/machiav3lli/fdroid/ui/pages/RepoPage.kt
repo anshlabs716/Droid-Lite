@@ -53,7 +53,6 @@ import com.machiav3lli.fdroid.ui.components.ActionButton
 import com.machiav3lli.fdroid.ui.components.BlockText
 import com.machiav3lli.fdroid.ui.components.CheckChip
 import com.machiav3lli.fdroid.ui.components.OutlinedActionButton
-import com.machiav3lli.fdroid.ui.components.QrCodeImage
 import com.machiav3lli.fdroid.ui.components.RoundButton
 import com.machiav3lli.fdroid.ui.components.SelectChip
 import com.machiav3lli.fdroid.ui.components.SwitchRow
@@ -429,25 +428,6 @@ fun RepoPage(
                                     MaterialTheme.colorScheme.error
                                 else MaterialTheme.colorScheme.onSurface,
                                 monospace = true,
-                            )
-                        }
-                    }
-                }
-                if (!editMode) {
-                    item {
-                        TitleText(
-                            modifier = Modifier.fillMaxWidth(),
-                            text = stringResource(id = R.string.repo_qr_code),
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center,
-                        ) {
-                            QrCodeImage(
-                                content = repo.intentAddress,
-                                modifier = Modifier.fillMaxWidth(0.5f),
-                                contentDescription = stringResource(id = R.string.repo_qr_code)
                             )
                         }
                     }

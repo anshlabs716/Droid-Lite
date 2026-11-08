@@ -86,11 +86,3 @@ fun EmbeddedProduct.appInfoChips(
     *product.licenses.toTypedArray(),
 ).toImmutableList()
 
-@Composable
-fun Quadruple<Long, Long, String, Int>.downloadInfoChips(
-) = listOfNotNull(
-    stringResource(id = R.string.downloads_total_FORMAT, first),
-    stringResource(id = R.string.downloads_recent_FORMAT, second),
-    stringResource(id = R.string.downloads_top_client_FORMAT, third),
-    stringResource(id = R.string.downloads_top_ranking_FORMAT, fourth),
-).toImmutableList()

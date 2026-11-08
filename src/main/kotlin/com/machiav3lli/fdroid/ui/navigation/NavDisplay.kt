@@ -1,150 +1,130 @@
+/*
+ * Droid-Lite — minimal navigation host.
+ * Replaces androidx.navigation3 with a ~120-line observable back stack.
+ * Derived from Neo Store's navigation structure (GPLv3).
+ */
 package com.machiav3lli.fdroid.ui.navigation
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
-import androidx.navigation3.runtime.EntryProviderScope
-import androidx.navigation3.runtime.NavBackStack
-import androidx.navigation3.runtime.entryProvider
-import androidx.navigation3.ui.NavDisplay
 import com.machiav3lli.fdroid.ui.pages.AppPage
 import com.machiav3lli.fdroid.ui.pages.MainPage
 import com.machiav3lli.fdroid.ui.pages.OnboardingPage
 import com.machiav3lli.fdroid.ui.pages.PrefsPage
 import com.machiav3lli.fdroid.ui.pages.SearchPage
 import com.machiav3lli.fdroid.ui.pages.SortFilterSheet
-import kotlinx.collections.immutable.persistentListOf
 
-@OptIn(ExperimentalMaterial3Api::class)
+sealed class NavRoute {
+    data object Onboarding : NavRoute()
+    data class Main(val page: Int = 0) : NavRoute()
+    data class App(val packageName: String) : NavRoute()
+    data class SortFilter(val page: String) : NavRoute()
+    data class Search(val query: String) : NavRoute()
+    data class Prefs(val page: Int = 0) : NavRoute()
+}
+
+class NavBackStack(vararg initial: NavRoute) {
+    val routes: SnapshotStateList<NavRoute> = mutableStateListOf(*initial)
+
+    val size: Int get() = routes.size
+    val top: NavRoute? get() = routes.lastOrNull()
+
+    fun add(route: NavRoute) {
+        routes.add(route)
+    }
+
+    fun remove(route: NavRoute) {
+        routes.remove(route)
+    }
+
+    fun removeLastOrNull() {
+        if (routes.size > 1) routes.removeAt(routes.lastIndex)
+    }
+
+    fun navigate(route: NavRoute) {
+        routes.removeAll { it == route }
+        routes.add(route)
+    }
+
+    fun navigateUnique(route: NavRoute) {
+        val topRoute = routes.lastOrNull()
+        if (topRoute == route) return
+        routes.removeAll { it::class == route::class }
+        routes.add(route)
+    }
+
+    operator fun contains(route: NavRoute): Boolean = routes.contains(route)
+
+    fun any(predicate: (NavRoute) -> Boolean): Boolean = routes.any(predicate)
+
+    fun none(predicate: (NavRoute) -> Boolean): Boolean = routes.none(predicate)
+}
+
 @Composable
 fun AppNavDisplay(
-    backStack: NavBackStack<NavRoute>,
+    backStack: NavBackStack,
     modifier: Modifier = Modifier,
 ) {
-    // TODO replace with native scene strategies:
-    //  https://github.com/android/nav3-recipes/blob/main/app/src/main/java/com/example/nav3recipes/material/listdetail
-    //  https://github.com/android/nav3-recipes/blob/main/app/src/main/java/com/example/nav3recipes/bottomsheet
-    val listDetailStrategy = rememberNeoSceneStrategy<NavRoute>()
+    val top by androidx.compose.runtime.rememberUpdatedState(backStack.top)
 
-    NavDisplay(
+    BackHandler(enabled = backStack.size > 1) {
+        backStack.removeLastOrNull()
+    }
+
+    AnimatedContent(
         modifier = modifier,
-        backStack = backStack,
-        onBack = { backStack.removeLastOrNull() },
-        sceneStrategies = persistentListOf(listDetailStrategy),
+        targetState = top,
         transitionSpec = {
-            slideInHorizontally(tween(600)) { it } togetherWith
-                    slideOutHorizontally(tween(600)) { -it }
+            if (targetState is NavRoute.Onboarding || targetState is NavRoute.Main) {
+                (fadeIn(tween(200)) togetherWith fadeOut(tween(200)))
+            } else {
+                (slideInHorizontally(tween(250)) { it } togetherWith
+                        slideOutHorizontally(tween(250)) { -it })
+            }
         },
-        popTransitionSpec = {
-            slideInHorizontally(tween(600)) { -it } togetherWith
-                    slideOutHorizontally(tween(600)) { it }
-        },
-        predictivePopTransitionSpec = {
-            slideInHorizontally(tween(600)) { -it } togetherWith
-                    slideOutHorizontally(tween(600)) { it }
-        },
-        entryProvider = entryProvider {
-            fadeInEntry<NavRoute.Onboarding> {
-                OnboardingPage {
-                    if (backStack.none { it is NavRoute.Main }) backStack.add(NavRoute.Main())
-                    backStack.remove(NavRoute.Onboarding)
-                }
+        contentKey = { it?.let { r -> r::class.simpleName } ?: "none" },
+        label = "droidlite-nav",
+    ) { route ->
+        when (route) {
+            is NavRoute.Onboarding -> OnboardingPage {
+                if (backStack.none { it is NavRoute.Main }) backStack.add(NavRoute.Main())
+                backStack.remove(NavRoute.Onboarding)
             }
-            slideInEntry<NavRoute.Main>(
-                metadata = ListDetailScene.listPane()
-            ) { key ->
-                MainPage(
-                    pageIndex = key.page,
-                    navigator = { backStack.navigateUnique(it) },
-                )
-            }
-            slideInEntry<NavRoute.Prefs> { key ->
-                PrefsPage(
-                    pageIndex = key.page,
-                    navigateUp = { backStack.removeLastOrNull() },
-                )
-            }
-            slideInEntry<NavRoute.App>(
-                metadata = ListDetailScene.detailPane()
-            ) { key ->
-                AppPage(key.packageName) {
-                    backStack.removeLastOrNull()
-                }
-            }
-            slideInEntry<NavRoute.SortFilter>(
-                metadata = BottomSheetScene.bottomSheet()
-            ) { key ->
-                SortFilterSheet(key.page) {
-                    backStack.removeLastOrNull()
-                }
-            }
-            slideInEntry<NavRoute.Search>(
-                metadata = ListDetailScene.listPane()
-            ) { key ->
-                SearchPage(key.query) {
-                    backStack.removeLastOrNull()
-                }
-            }
-        }
-    )
-}
 
-inline fun <reified K : NavRoute> EntryProviderScope<NavRoute>.slideInEntry(
-    metadata: Map<String, Any> = emptyMap(),
-    noinline content: @Composable (K) -> Unit,
-) {
-    entry<K>(
-        metadata = metadata + NavDisplay.transitionSpec {
-            slideInHorizontally(tween(600)) { it } togetherWith
-                    slideOutHorizontally(tween(600)) { -it }
-        } + NavDisplay.popTransitionSpec {
-            slideInHorizontally(tween(600)) { -it } togetherWith
-                    slideOutHorizontally(tween(600)) { it }
-        } + NavDisplay.predictivePopTransitionSpec {
-            slideInHorizontally(tween(600)) { -it } togetherWith
-                    slideOutHorizontally(tween(600)) { it }
+            is NavRoute.Main -> MainPage(
+                pageIndex = route.page,
+                navigator = { backStack.navigateUnique(it) },
+            )
+
+            is NavRoute.Prefs -> PrefsPage(
+                pageIndex = route.page,
+                navigateUp = { backStack.removeLastOrNull() },
+            )
+
+            is NavRoute.App -> AppPage(route.packageName) {
+                backStack.removeLastOrNull()
+            }
+
+            is NavRoute.SortFilter -> SortFilterSheet(route.page) {
+                backStack.removeLastOrNull()
+            }
+
+            is NavRoute.Search -> SearchPage(route.query) {
+                backStack.removeLastOrNull()
+            }
+
+            null -> {}
         }
-    ) {
-        content(it)
     }
-}
-
-inline fun <reified K : NavRoute> EntryProviderScope<NavRoute>.fadeInEntry(
-    metadata: Map<String, Any> = emptyMap(),
-    noinline content: @Composable (K) -> Unit,
-) {
-    entry<K>(
-        metadata = metadata + NavDisplay.transitionSpec {
-            fadeIn(tween(400), 0.3f) togetherWith
-                    fadeOut(tween(400), 0.3f)
-        } + NavDisplay.popTransitionSpec {
-            fadeIn(tween(400), 0.3f) togetherWith
-                    fadeOut(tween(400), 0.3f)
-        } + NavDisplay.predictivePopTransitionSpec {
-            fadeIn(tween(400), 0.3f) togetherWith
-                    fadeOut(tween(400), 0.3f)
-        }
-    ) {
-        content(it)
-    }
-}
-
-fun MutableList<NavRoute>.navigateUnique(key: NavRoute) {
-    val lastKey = lastOrNull()
-    if (lastKey != null && lastKey == key) return
-    removeAll { existing -> existing::class == key::class }
-    add(key)
-}
-
-fun MutableList<NavRoute>.navigate(key: NavRoute) {
-    val lastKey = lastOrNull()
-    if (lastKey != null && lastKey == key) return
-    remove(key)
-    add(key)
 }

@@ -25,8 +25,6 @@ import com.machiav3lli.fdroid.data.database.dao.AntiFeatureDao
 import com.machiav3lli.fdroid.data.database.dao.AntiFeatureTempDao
 import com.machiav3lli.fdroid.data.database.dao.CategoryDao
 import com.machiav3lli.fdroid.data.database.dao.CategoryTempDao
-import com.machiav3lli.fdroid.data.database.dao.DownloadStatsDao
-import com.machiav3lli.fdroid.data.database.dao.DownloadStatsFileDao
 import com.machiav3lli.fdroid.data.database.dao.DownloadedDao
 import com.machiav3lli.fdroid.data.database.dao.ExtrasDao
 import com.machiav3lli.fdroid.data.database.dao.InstallTaskDao
@@ -43,16 +41,10 @@ import com.machiav3lli.fdroid.data.database.entity.AntiFeature
 import com.machiav3lli.fdroid.data.database.entity.AntiFeatureTemp
 import com.machiav3lli.fdroid.data.database.entity.Category
 import com.machiav3lli.fdroid.data.database.entity.CategoryTemp
-import com.machiav3lli.fdroid.data.database.entity.ClientPackageSum
-import com.machiav3lli.fdroid.data.database.entity.DownloadStats
-import com.machiav3lli.fdroid.data.database.entity.DownloadStatsFileMetadata
 import com.machiav3lli.fdroid.data.database.entity.Downloaded
-import com.machiav3lli.fdroid.data.database.entity.ExodusInfo
 import com.machiav3lli.fdroid.data.database.entity.Extras
 import com.machiav3lli.fdroid.data.database.entity.InstallTask
 import com.machiav3lli.fdroid.data.database.entity.Installed
-import com.machiav3lli.fdroid.data.database.entity.MonthlyPackageSum
-import com.machiav3lli.fdroid.data.database.entity.PackageSum
 import com.machiav3lli.fdroid.data.database.entity.Product
 import com.machiav3lli.fdroid.data.database.entity.ProductIconDetails
 import com.machiav3lli.fdroid.data.database.entity.ProductTemp
@@ -115,24 +107,15 @@ import java.io.File
         RepoCategoryTemp::class,
         Installed::class,
         Extras::class,
-        ExodusInfo::class,
         Tracker::class,
         Downloaded::class,
         InstallTask::class,
         AntiFeature::class,
         AntiFeatureTemp::class,
         RBLog::class,
-        DownloadStats::class,
-        DownloadStatsFileMetadata::class,
     ],
-    version = 1304,
+    version = 1305,
     exportSchema = true,
-    views = [
-        PackageSum::class,
-        ClientPackageSum::class,
-        MonthlyPackageSum::class,
-        ProductIconDetails::class,
-    ],
     autoMigrations = [
         AutoMigration(
             from = 8,
@@ -293,7 +276,6 @@ import java.io.File
         AutoMigration(
             from = 1202,
             to = 1203,
-            spec = DatabaseX.Companion.DownloadStatsCleanup::class
         ),
         AutoMigration(
             from = 1203,
@@ -339,6 +321,14 @@ import java.io.File
             from = 1302,
             to = 1304,
         ),
+        AutoMigration(
+            from = 1304,
+            to = 1305,
+            spec = DatabaseX.Companion.DroidLiteDrops::class
+        ),
+    ],
+    views = [
+        ProductIconDetails::class,
     ]
 )
 @TypeConverters(Converters::class)
@@ -353,8 +343,6 @@ abstract class DatabaseX : RoomDatabase() {
     abstract fun getExtrasDao(): ExtrasDao
     abstract fun getDownloadedDao(): DownloadedDao
     abstract fun getRBLogDao(): RBLogDao
-    abstract fun getDownloadStatsDao(): DownloadStatsDao
-    abstract fun getDownloadStatsFileDao(): DownloadStatsFileDao
 
     // TODO replace external calls
     abstract fun getReleaseTempDao(): ReleaseTempDao
@@ -499,6 +487,17 @@ abstract class DatabaseX : RoomDatabase() {
             }
         }
 
+
+        @DeleteTable.Entries(
+            DeleteTable(tableName = "exodus_info"),
+            DeleteTable(tableName = "download_stats"),
+            DeleteTable(tableName = "ds_file_meta_data"),
+            DeleteTable(tableName = "PackageSum"),
+            DeleteTable(tableName = "ClientPackageSum"),
+            DeleteTable(tableName = "MonthlyPackageSum"),
+        )
+        class DroidLiteDrops : AutoMigrationSpec
+
         @RenameColumn(tableName = TABLE_REPOSITORY, fromColumnName = "_id", toColumnName = ROW_ID)
         @RenameTable(fromTableName = "ExodusInfo", toTableName = TABLE_EXODUS_INFO)
         @RenameTable(fromTableName = "Tracker", toTableName = TABLE_TRACKER)
@@ -587,19 +586,6 @@ abstract class DatabaseX : RoomDatabase() {
             }
         }
 
-        class DownloadStatsCleanup : AutoMigrationSpec {
-            override fun onPostMigrate(db: SupportSQLiteDatabase) {
-                super.onPostMigrate(db)
-                GlobalScope.launch(Dispatchers.IO) {
-                    get<DatabaseX>(DatabaseX::class.java).apply {
-                        withTransaction {
-                            getDownloadStatsDao().emptyTable()
-                            getDownloadStatsFileDao().emptyTable()
-                        }
-                    }
-                }
-            }
-        }
 
         class DownloadedCleanup : AutoMigrationSpec {
             override fun onPostMigrate(db: SupportSQLiteDatabase) {
@@ -748,6 +734,4 @@ val databaseModule = module {
     single { get<DatabaseX>().getDownloadedDao() }
     single { get<DatabaseX>().getInstallTaskDao() }
     single { get<DatabaseX>().getRBLogDao() }
-    single { get<DatabaseX>().getDownloadStatsDao() }
-    single { get<DatabaseX>().getDownloadStatsFileDao() }
 }

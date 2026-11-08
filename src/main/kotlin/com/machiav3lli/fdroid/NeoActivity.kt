@@ -11,8 +11,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.biometric.BiometricManager
-import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -27,7 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation3.runtime.NavBackStack
 import com.machiav3lli.fdroid.data.content.Preferences
 import com.machiav3lli.fdroid.data.repository.DownloadedRepository
 import com.machiav3lli.fdroid.data.repository.ExtrasRepository
@@ -38,16 +35,14 @@ import com.machiav3lli.fdroid.data.repository.ProductsRepository
 import com.machiav3lli.fdroid.data.repository.RepositoriesRepository
 import com.machiav3lli.fdroid.ui.compose.theme.AppTheme
 import com.machiav3lli.fdroid.ui.navigation.AppNavDisplay
+import com.machiav3lli.fdroid.ui.navigation.NavBackStack
 import com.machiav3lli.fdroid.ui.navigation.NavItem
 import com.machiav3lli.fdroid.ui.navigation.NavRoute
-import com.machiav3lli.fdroid.ui.navigation.navigate
-import com.machiav3lli.fdroid.ui.navigation.navigateUnique
 import com.machiav3lli.fdroid.ui.pages.SplashPage
 import com.machiav3lli.fdroid.utils.InstallUtils
 import com.machiav3lli.fdroid.utils.extension.text.nullIfEmpty
 import com.machiav3lli.fdroid.utils.extension.text.pathCropped
 import com.machiav3lli.fdroid.utils.hasPendingPermissions
-import com.machiav3lli.fdroid.utils.isBiometricLockEnabled
 import com.machiav3lli.fdroid.utils.isDarkTheme
 import com.machiav3lli.fdroid.viewmodels.AppPageVM
 import com.machiav3lli.fdroid.viewmodels.ExploreVM
@@ -85,7 +80,7 @@ class NeoActivity : AppCompatActivity() {
         class AddRepo(val address: String?, val fingerprint: String?) : SpecialIntent()
     }
 
-    private lateinit var navStack: NavBackStack<NavRoute>
+    private lateinit var navStack: NavBackStack
 
     private var currentTheme by Delegates.notNull<Int>()
     private val mainViewModel: MainVM by viewModel()
@@ -346,34 +341,7 @@ class NeoActivity : AppCompatActivity() {
     }
 
     fun launchLockPrompt(action: () -> Unit) {
-        try {
-            val biometricPrompt = createBiometricPrompt(action)
-            val promptInfo = BiometricPrompt.PromptInfo.Builder()
-                .setTitle(getString(R.string.action_lock_device))
-                .setConfirmationRequired(true)
-                .setAllowedAuthenticators(
-                    BiometricManager.Authenticators.DEVICE_CREDENTIAL or (
-                            if (NeoApp.context.isBiometricLockEnabled()) BiometricManager.Authenticators.BIOMETRIC_WEAK
-                            else 0
-                            )
-                )
-                .build()
-            biometricPrompt.authenticate(promptInfo)
-        } catch (e: Throwable) {
-            action()
-        }
-    }
-
-    private fun createBiometricPrompt(action: () -> Unit): BiometricPrompt {
-        return BiometricPrompt(
-            this,
-            ContextCompat.getMainExecutor(this),
-            object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    super.onAuthenticationSucceeded(result)
-                    action()
-                }
-            })
+        action()
     }
 }
 

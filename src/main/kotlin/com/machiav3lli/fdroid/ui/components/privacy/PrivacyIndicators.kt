@@ -49,7 +49,7 @@ import com.machiav3lli.fdroid.ui.compose.theme.LightYellowGreen
 import com.machiav3lli.fdroid.ui.compose.theme.PaleYellow
 import com.machiav3lli.fdroid.ui.compose.theme.StrongRed
 import com.machiav3lli.fdroid.ui.compose.theme.TealGreen
-import com.materialkolor.ktx.isLight
+import androidx.compose.ui.graphics.luminance
 import kotlinx.coroutines.launch
 
 @Composable
@@ -178,12 +178,12 @@ private fun PrivacyIndicatorIcon(
         label = "tintColor",
     )
     val onTintIcon by animateColorAsState(
-        if (MaterialTheme.colorScheme.surface.isLight()) Color.Black
+        if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) Color.Black
         else Color.White,
         label = "onTintColor",
     )
     val onTintBadge by animateColorAsState(
-        if (tint.isLight()) Color.Black
+        if (tint.luminance() > 0.5f) Color.Black
         else Color.White,
         label = "onTintColor",
     )

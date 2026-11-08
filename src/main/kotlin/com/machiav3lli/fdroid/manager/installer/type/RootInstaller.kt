@@ -13,7 +13,7 @@ import com.machiav3lli.fdroid.utils.notifyFinishedInstall
 import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.io.IOException
+import java.io.IOException
 import java.io.File
 import java.util.regex.Pattern
 

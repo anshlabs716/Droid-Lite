@@ -54,7 +54,6 @@ import com.machiav3lli.fdroid.R
 import com.machiav3lli.fdroid.data.content.Preferences
 import com.machiav3lli.fdroid.data.entity.DialogKey
 import com.machiav3lli.fdroid.data.entity.Source
-import com.machiav3lli.fdroid.data.entity.TopDownloadType
 import com.machiav3lli.fdroid.data.entity.appCategoryIcon
 import com.machiav3lli.fdroid.ui.components.CategoriesList
 import com.machiav3lli.fdroid.ui.components.FilledRoundButton
@@ -93,12 +92,10 @@ fun ExplorePage(
     val topsListState = rememberLazyListState()
 
     val categoryProductsState by viewModel.categoryProductsState.collectAsStateWithLifecycle()
-    val topProductsState by viewModel.topProductsState.collectAsStateWithLifecycle()
     val dataState by mainVM.dataState.collectAsStateWithLifecycle()
     val selectedCategory = rememberSaveable {
         mutableStateOf("")
     }
-    val exploreTab = rememberSaveable { mutableIntStateOf(0) }
 
     val openDialog = remember { mutableStateOf(false) }
     val dialogKey: MutableState<DialogKey?> = remember { mutableStateOf(null) }
@@ -175,7 +172,7 @@ fun ExplorePage(
                 horizontalArrangement = Arrangement.Start,
             ) {
                 AnimatedVisibility(
-                    exploreTab.intValue == 0 && selectedCategory.value.isNotEmpty()
+                    selectedCategory.value.isNotEmpty()
                 ) {
                     RoundButton(
                         icon = Phosphor.ListBullets,
@@ -187,54 +184,18 @@ fun ExplorePage(
                     }
                 }
             }
-            SingleChoiceSegmentedButtonRow(
-                modifier = Modifier
-                    .padding(top = 4.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        shape = MaterialTheme.shapes.extraLarge,
-                    )
-                    .padding(horizontal = 4.dp),
-            ) {
-                SegmentedTabButton(
-                    text = stringResource(id = R.string.categories),
-                    icon = Phosphor.CirclesFour,
-                    selected = {
-                        exploreTab.intValue == 0
-                    },
-                    onClick = {
-                        exploreTab.intValue = 0
-                    }
-                )
-                if (Preferences[Preferences.Key.DLStatsProvider] != Preferences.DLStatsProvider.None
-                    && topProductsState.statsNotEmpty
-                ) SegmentedTabButton(
-                    text = stringResource(id = R.string.top_apps),
-                    icon = Phosphor.Asterisk,
-                    selected = {
-                        exploreTab.intValue == 1
-                    },
-                    onClick = {
-                        exploreTab.intValue = 1
-                    },
-                )
-            }
             Row(
                 modifier = Modifier.weight(1f),
                 horizontalArrangement = Arrangement.End,
             ) {
-                if (exploreTab.intValue == 0) {
-                    SortFilterButton(isModified = modifiedSortFilter) {
-                        neoActivity.navigateSortFilterSheet(NavItem.Explore)
-                    }
+                SortFilterButton(isModified = modifiedSortFilter) {
+                    neoActivity.navigateSortFilterSheet(NavItem.Explore)
                 }
             }
         }
-        when (exploreTab.intValue) {
-            0 -> {
-                Column(
-                    modifier = Modifier.clipToBounds(),
-                ) {
+        Column(
+            modifier = Modifier.clipToBounds(),
+        ) {
                     CategoriesList(
                         items = listOf(
                             Triple(
@@ -310,100 +271,7 @@ fun ExplorePage(
                         }
                     }
                 }
-            }
-
-            1 -> {
-                // TODO add modes' action chips
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    state = topsListState,
-                    contentPadding = PaddingValues(vertical = 8.dp),
-                ) {
-                    stickyHeader(key = "topAppsModes") {
-                        LazyRow(
-                            modifier = Modifier
-                                .background(MaterialTheme.colorScheme.surfaceContainerLowest)
-                                .height(54.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(8.dp)
-                        ) {
-                            items(items = TopDownloadType.entries, key = { it.key }) { type ->
-                                SelectChip(
-                                    text = stringResource(type.displayString),
-                                    checked = topProductsState.topAppType == type,
-                                    alwaysShowIcon = false,
-                                ) {
-                                    viewModel.setTopAppsType(type)
-                                }
-                            }
-                        }
-                    }
-                    item(key = "topAppsNotice") {
-                        Card(
-                            modifier = Modifier.padding(8.dp)
-                        ) {
-                            ListItem(
-                                colors = ListItemDefaults.colors(
-                                    containerColor = Color.Transparent,
-                                ),
-                                verticalAlignment = Alignment.CenterVertically,
-                                trailingContent = {
-                                    FilledRoundButton(
-                                        icon = Phosphor.Info,
-                                        description = stringResource(R.string.download_stats),
-                                    ) {
-                                        context.launchView(LINK_IOD_DLSTATS)
-                                    }
-                                },
-                                content = {
-                                    Text(
-                                        text = stringResource(R.string.top_apps_notice),
-                                        textAlign = TextAlign.Center,
-                                    )
-                                }
-                            )
-                        }
-                    }
-                    items(items = topProductsState.items, key = { it.packageName }) { item ->
-                        ProductsListItem(
-                            item = item,
-                            repo = dataState.reposMap[item.repositoryId],
-                            isFavorite = dataState.favorites.contains(item.packageName),
-                            onUserClick = {
-                                neoActivity.navigateProduct(it.packageName)
-                            },
-                            onFavouriteClick = {
-                                mainVM.setFavorite(
-                                    it.packageName,
-                                    !dataState.favorites.contains(it.packageName)
-                                )
-                            },
-                            installed = topProductsState.installedMap[item.packageName],
-                            onActionClick = {
-                                val installed = topProductsState.installedMap[it.packageName]
-                                val action = {
-                                    NeoApp.wm.install(
-                                        Pair(it.packageName, it.repositoryId)
-                                    )
-                                }
-                                if (installed != null && installed.launcherActivities.isNotEmpty())
-                                    context.onLaunchClick(
-                                        installed,
-                                        neoActivity.supportFragmentManager
-                                    )
-                                else if (Preferences[Preferences.Key.DownloadShowDialog]) {
-                                    dialogKey.value = DialogKey.Download(it.name, action)
-                                    openDialog.value = true
-                                } else action()
-                            }
-                        )
-                    }
-                }
-            }
         }
-    }
 
     if (openDialog.value) {
         BaseDialog(openDialogCustom = openDialog) {
@@ -412,15 +280,8 @@ fun ExplorePage(
                     key = dialogKey.value,
                     openDialog = openDialog,
                     primaryAction = {
-                        if (Preferences[Preferences.Key.ActionLockDialog] != Preferences.ActionLock.None)
-                            neoActivity.launchLockPrompt {
-                                (dialogKey.value as DialogKey.Download).action()
+                                                        (dialogKey.value as DialogKey.Download).action()
                                 openDialog.value = false
-                            }
-                        else {
-                            (dialogKey.value as DialogKey.Download).action()
-                            openDialog.value = false
-                        }
                     },
                     onDismiss = {
                         dialogKey.value = null

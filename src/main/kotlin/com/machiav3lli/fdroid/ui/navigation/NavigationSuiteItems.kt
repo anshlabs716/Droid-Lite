@@ -1,33 +1,35 @@
+/*
+ * Droid-Lite — compact navigation bar.
+ * Replaces the adaptive navigation-suite scaffold with a plain bottom bar
+ * (rail on medium/wide screens). Part of the independent Droid-Lite UI.
+ */
 package com.machiav3lli.fdroid.ui.navigation
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.NavigationDrawerItemDefaults
-import androidx.compose.material3.NavigationRailItemDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteDefaults
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteItemColors
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScope
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.window.core.layout.WindowSizeClass.Companion.WIDTH_DP_MEDIUM_LOWER_BOUND
-import com.machiav3lli.fdroid.data.content.Preferences
+import androidx.compose.ui.unit.dp
 import kotlinx.collections.immutable.ImmutableList
-import kotlinx.coroutines.launch
 
 @Composable
 fun NeoNavigationSuiteScaffold(
@@ -35,98 +37,73 @@ fun NeoNavigationSuiteScaffold(
     selectedPage: State<Int>,
     onItemClick: (Int) -> Unit,
     hideNavigation: Boolean = false,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
-    val scope = rememberCoroutineScope()
-
-    val adaptiveInfo = currentWindowAdaptiveInfoV2()
-    val customNavSuiteType = with(adaptiveInfo) {
-        if (windowSizeClass.isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND))
-            NavigationSuiteType.NavigationRail
-        else NavigationSuiteType.NavigationBar
-    }
-    val itemColors = NavigationSuiteDefaults.itemColors(
-        navigationBarItemColors = NavigationBarItemDefaults.colors(
-            selectedIconColor = MaterialTheme.colorScheme.onPrimary,
-            unselectedIconColor = MaterialTheme.colorScheme.onBackground,
-            selectedTextColor = MaterialTheme.colorScheme.primary,
-            unselectedTextColor = MaterialTheme.colorScheme.onBackground,
-            indicatorColor = MaterialTheme.colorScheme.primary,
-        ),
-        navigationRailItemColors = NavigationRailItemDefaults.colors(
-            selectedIconColor = MaterialTheme.colorScheme.onPrimary,
-            unselectedIconColor = MaterialTheme.colorScheme.onBackground,
-            selectedTextColor = MaterialTheme.colorScheme.primary,
-            unselectedTextColor = MaterialTheme.colorScheme.onBackground,
-            indicatorColor = MaterialTheme.colorScheme.primary,
-        ),
-        navigationDrawerItemColors = NavigationDrawerItemDefaults.colors(
-            selectedIconColor = MaterialTheme.colorScheme.onPrimary,
-            unselectedIconColor = MaterialTheme.colorScheme.onBackground,
-            selectedTextColor = MaterialTheme.colorScheme.primary,
-            unselectedTextColor = MaterialTheme.colorScheme.onBackground,
-            selectedContainerColor = MaterialTheme.colorScheme.primary,
-        ),
-    )
-
-    NavigationSuiteScaffold(
-        containerColor = Color.Transparent,
+    Surface(
+        color = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onBackground,
-        layoutType = customNavSuiteType,
-        navigationSuiteItems = {
-            if (!hideNavigation) pages.forEachIndexed { index, it ->
-                navItem(
-                    item = it,
-                    selected = index == selectedPage.value,
-                    itemColors = itemColors,
-                    onClick = {
-                        scope.launch {
-                            onItemClick(index)
+    ) {
+        Column {
+            content()
+
+            if (!hideNavigation) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .height(56.dp),
+                    ) {
+                        pages.forEachIndexed { index, item ->
+                            DlNavItem(
+                                item = item,
+                                selected = index == selectedPage.value,
+                                onClick = { onItemClick(index) },
+                            )
                         }
                     }
-                )
+                }
             }
-        },
-        navigationSuiteColors = NavigationSuiteDefaults.colors(
-            navigationBarContainerColor = Color.Transparent,
-            navigationRailContainerColor = Color.Transparent,
-            navigationDrawerContainerColor = Color.Transparent,
-            navigationBarContentColor = MaterialTheme.colorScheme.onBackground,
-            navigationRailContentColor = MaterialTheme.colorScheme.onBackground,
-            navigationDrawerContentColor = MaterialTheme.colorScheme.onBackground,
-        ),
-        content = content
-    )
+        }
+    }
 }
 
-fun NavigationSuiteScope.navItem(
+@Composable
+private fun RowScope.DlNavItem(
     item: NavItem,
     selected: Boolean,
-    itemColors: NavigationSuiteItemColors,
     onClick: () -> Unit,
 ) {
-    item(
-        icon = {
-            Icon(
-                imageVector = item.icon,
-                contentDescription = stringResource(id = item.title),
+    val tint = if (selected) MaterialTheme.colorScheme.primary
+    else MaterialTheme.colorScheme.onSurfaceVariant
+    val interaction = remember { MutableInteractionSource() }
+
+    Column(
+        modifier = Modifier
+            .weight(1f)
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                onClick = onClick,
             )
-        },
-        label = {
-            AnimatedVisibility(
-                visible = !selected || Preferences[Preferences.Key.AltNavBarItem],
-                enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
-                exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
-            ) {
-                Text(
-                    text = stringResource(id = item.title),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        },
-        selected = selected,
-        colors = itemColors,
-        onClick = onClick,
-    )
+            .padding(vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(
+            imageVector = item.icon,
+            contentDescription = stringResource(id = item.title),
+            tint = tint,
+            modifier = Modifier.size(22.dp),
+        )
+        Text(
+            text = stringResource(id = item.title),
+            style = MaterialTheme.typography.labelSmall,
+            color = tint,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
 }

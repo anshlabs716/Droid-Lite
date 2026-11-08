@@ -22,7 +22,6 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import com.anggrayudi.storage.toStorageFile
 import com.machiav3lli.fdroid.ARG_AUTHENTICATION
 import com.machiav3lli.fdroid.ARG_MANUALLY_ENQUEUED
 import com.machiav3lli.fdroid.ARG_NAME
@@ -49,7 +48,6 @@ import com.machiav3lli.fdroid.data.repository.InstallsRepository
 import com.machiav3lli.fdroid.manager.network.DownloadSizeException
 import com.machiav3lli.fdroid.manager.network.Downloader
 import com.machiav3lli.fdroid.manager.service.InstallerReceiver
-import com.machiav3lli.fdroid.utils.copyTo
 import com.machiav3lli.fdroid.utils.downloadNotificationBuilder
 import com.machiav3lli.fdroid.utils.extension.android.Android
 import com.machiav3lli.fdroid.utils.extension.android.signerSHA256Signatures
@@ -57,11 +55,12 @@ import com.machiav3lli.fdroid.utils.extension.android.versionCodeCompat
 import com.machiav3lli.fdroid.utils.extension.text.formatSize
 import com.machiav3lli.fdroid.utils.extension.text.hex
 import com.machiav3lli.fdroid.utils.extension.text.nullIfEmpty
+import com.machiav3lli.fdroid.utils.copyIn
 import com.machiav3lli.fdroid.utils.getDownloadFolder
 import com.machiav3lli.fdroid.utils.isDownloadExternal
 import com.machiav3lli.fdroid.utils.notifySensitivePermissionsChanged
 import com.machiav3lli.fdroid.utils.updateWithError
-import io.ktor.http.HttpStatusCode
+import com.machiav3lli.fdroid.manager.network.HttpStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.koin.core.component.KoinComponent
@@ -91,7 +90,7 @@ class DownloadWorker(
                 .takeIf { it.exists() }
                 ?.also { releaseFile ->
                     val validationError = validatePackage(task, releaseFile)
-                    val result = Downloader.Result(HttpStatusCode.OK, "", "")
+                    val result = Downloader.Result(HttpStatus.OK, "", "")
                     Log.i(TAG, "Running publish success from fun enqueue")
                     return@withContext if (validationError == ValidationError.NONE) {
                         val releaseFile =
@@ -235,13 +234,13 @@ class DownloadWorker(
                 e
             )
             partialRelease.delete()
-            val result = Downloader.Result(HttpStatusCode.BadRequest, "", "")
+            val result = Downloader.Result(HttpStatus.BadRequest, "", "")
             handleError(result, ValidationError.FILE_SIZE)
             return Result.failure(getWorkData(task, result, ValidationError.FILE_SIZE))
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             Log.e(TAG, "[ValidationError] Failed with unexpected error: ${e.message}", e)
-            val result = Downloader.Result(HttpStatusCode.InternalServerError, "", "")
+            val result = Downloader.Result(HttpStatus.InternalServerError, "", "")
             handleError(result, ValidationError.UNKNOWN)
             return Result.failure(getWorkData(task, result, ValidationError.UNKNOWN))
         }
@@ -450,9 +449,8 @@ class DownloadWorker(
         if (isDownloadExternal) {
             context.getDownloadFolder()?.let { downloadFolder ->
                 val cacheFile = Cache.getReleaseFile(applicationContext, task.release.cacheFileName)
-                    .toStorageFile(applicationContext)
-                if (downloadFolder.list().none { it.name == task.release.cacheFileName }) {
-                    cacheFile.copyTo(downloadFolder)
+                if (downloadFolder.find(task.release.cacheFileName) == null) {
+                    downloadFolder.copyIn(cacheFile)
                 }
             }
         }

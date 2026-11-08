@@ -16,38 +16,6 @@ import com.machiav3lli.fdroid.data.content.Preferences
 import com.machiav3lli.fdroid.data.entity.DownloadTask
 import com.machiav3lli.fdroid.utils.dmReasonToHttpResponse
 import com.machiav3lli.fdroid.utils.extension.text.formatDateTime
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.ProxyBuilder
-import io.ktor.client.engine.okhttp.OkHttp
-import io.ktor.client.engine.resolveAddress
-import io.ktor.client.plugins.BodyProgress
-import io.ktor.client.plugins.HttpRequestRetry
-import io.ktor.client.plugins.HttpRequestTimeoutException
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.UserAgent
-import io.ktor.client.plugins.compression.ContentEncoding
-import io.ktor.client.plugins.logging.ANDROID
-import io.ktor.client.plugins.logging.LogLevel
-import io.ktor.client.plugins.logging.Logger
-import io.ktor.client.plugins.logging.Logging
-import io.ktor.client.plugins.onDownload
-import io.ktor.client.plugins.retry
-import io.ktor.client.request.header
-import io.ktor.client.request.headers
-import io.ktor.client.request.host
-import io.ktor.client.request.port
-import io.ktor.client.request.prepareGet
-import io.ktor.client.request.url
-import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.bodyAsChannel
-import io.ktor.http.CacheControl
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.ifNoneMatch
-import io.ktor.http.isSuccess
-import io.ktor.util.network.hostname
-import io.ktor.util.network.port
-import io.ktor.utils.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -55,11 +23,12 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import okhttp3.ConnectionPool
 import okhttp3.ConnectionSpec
-import org.koin.core.module.dsl.singleOf
-import org.koin.dsl.module
-import org.koin.mp.KoinPlatform.getKoin
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
 import java.io.File
 import java.io.FileOutputStream
+import java.net.InetSocketAddress
 import java.net.Proxy
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
@@ -69,39 +38,37 @@ import java.util.concurrent.atomic.AtomicInteger
 import javax.net.ssl.SSLContext
 import javax.net.ssl.X509TrustManager
 import kotlin.coroutines.cancellation.CancellationException
-import kotlin.math.pow
 
 object Downloader {
     private const val TAG = "Downloader"
-    private val client: HttpClient by getKoin().inject()
     private val retries = ConcurrentHashMap<String, AtomicInteger>()
     private val downloadSemaphore = Semaphore(Preferences[Preferences.Key.MaxParallelDownloads])
+    private val clients = ConcurrentHashMap<String, OkHttpClient>()
 
     var proxy: Proxy? = null
         set(value) {
             Log.i(this.javaClass.name, "updating main proxy to $value")
             if (field != value) {
                 field = value
+                clients.clear()
             }
         }
 
-    class Result(val statusCode: HttpStatusCode, val lastModified: String, val entityTag: String) {
+    class Result(val statusCode: HttpStatus, val lastModified: String, val entityTag: String) {
         val success: Boolean
-            get() = statusCode.isSuccess()
+            get() = statusCode.isSuccess
 
         val isNotModified: Boolean
-            get() = statusCode == HttpStatusCode.NotModified
-
-        constructor(response: HttpResponse) : this(
-            response.status,
-            response.headers[HttpHeaders.LastModified].orEmpty(),
-            response.headers[HttpHeaders.ETag].orEmpty(),
-        )
+            get() = statusCode == HttpStatus.NotModified
     }
 
-    private fun getProxy(onion: Boolean) =
-        if (onion) ProxyBuilder.socks("localhost", 9050)
+    private fun getProxy(onion: Boolean): Proxy? =
+        if (onion) Proxy(Proxy.Type.SOCKS, InetSocketAddress("localhost", 9050))
         else proxy
+
+    private fun clientFor(url: String): OkHttpClient = synchronized(clients) {
+        clients.getOrPut(url) { createDownloadClient(getProxy(url.endsWith(".onion"))) }
+    }
 
     suspend fun download(
         url: String,
@@ -131,78 +98,67 @@ object Downloader {
     ): Result = coroutineScope {
         ensureActive()
 
-        var start = if (target.exists()) target.length().coerceAtLeast(0L)
-        else null
+        val start = if (target.exists()) target.length().coerceAtLeast(0L) else null
         Log.i(TAG, "download start byte = $start")
 
         try {
-            client.prepareGet {
-                url(url)
-                getProxy(url.endsWith(".onion"))?.resolveAddress()?.let {
-                    this.host = it.hostname
-                    this.port = it.port
-                }
-                headers {
-                    if (!lastModified.isNullOrEmpty()) {
-                        append(HttpHeaders.IfModifiedSince, lastModified)
-                    }
-                    append(HttpHeaders.Authorization, authentication)
-                    //append(HttpHeaders.AcceptEncoding, "gzip, deflate")
-                    append(HttpHeaders.CacheControl, CacheControl.MaxAge(60).toString())
-                }
-                if (entityTag.isNotEmpty()) ifNoneMatch(entityTag)
-                if (start != null) header(HttpHeaders.Range, start.let { "bytes=$it-" })
-                retry {
-                    modifyRequest {
-                        ensureActive()
-                        start = if (target.exists()) target.length().coerceAtLeast(0L)
-                        else null
-                        if (start != null) header(
-                            HttpHeaders.Range,
-                            start?.let { "bytes=$it-" })
-                    }
-                }
-                this.onDownload { read, total ->
-                    ensureActive()
+            val request = Request.Builder().url(url).apply {
+                header("User-Agent", CLIENT_USER_AGENT)
+                if (lastModified.isNotEmpty())
+                    header("If-Modified-Since", lastModified)
+                if (authentication.isNotEmpty())
+                    header("Authorization", authentication)
+                header("Cache-Control", "max-age=60")
+                if (entityTag.isNotEmpty())
+                    header("If-None-Match", entityTag)
+                if (start != null)
+                    header("Range", "bytes=$start-")
+            }.build()
 
-                    val progressStart = start ?: 0L
-                    val progressTotal = total?.let { progressStart + total }
-
-                    // Check if downloaded size exceeds total size
-                    if (total != null && total > 0 && progressStart + read > total) {
-                        throw DownloadSizeException("Downloaded size exceeds expected total size")
-                    }
-
-                    callback.invoke(progressStart + read, progressTotal, -1L)
-                }
-            }.execute { response ->
+            clientFor(url).newCall(request).execute().use { response ->
                 when {
-                    response.status == HttpStatusCode.NotModified
-                        -> {
+                    response.code == 304 -> {
                         retries.remove(url)
-                        Result(response.status, lastModified, entityTag)
+                        Result(HttpStatus.NotModified, lastModified, entityTag)
                     }
 
-                    response.status.isSuccess()
-                        -> {
-                        val append =
-                            start != null && response.headers[HttpHeaders.ContentRange] != null
-                        val channel = response.bodyAsChannel().toInputStream()
+                    response.code in 200..299 -> {
+                        val contentRange = response.header("Content-Range")
+                        val append = start != null && contentRange != null
+                        val body = response.body ?: throw HttpResponseException(
+                            "Empty body.", HttpStatus(response.code)
+                        )
+                        val declaredLength = contentRange
+                            ?.substringAfterLast('/')
+                            ?.toLongOrNull()
+                            ?: body.contentLength().takeIf { it > 0 }
+                        val progressStart = start ?: 0L
 
-                        channel.use { input ->
-                            val outputStream = FileOutputStream(target, append)
-                            outputStream.use { output ->
-                                input.copyTo(output, BUFFER_SIZE)
+                        FileOutputStream(target, append).use { output ->
+                            body.byteStream().use { input ->
+                                val buffer = ByteArray(BUFFER_SIZE)
+                                var readTotal = 0L
+                                while (true) {
+                                    ensureActive()
+                                    val read = input.read(buffer)
+                                    if (read == -1) break
+                                    readTotal += read
+                                    if (declaredLength != null && readTotal > declaredLength)
+                                        throw DownloadSizeException(
+                                            "Downloaded size exceeds expected total size"
+                                        )
+                                    output.write(buffer, 0, read)
+                                    callback(progressStart + readTotal, declaredLength, -1L)
+                                }
                                 output.fd.sync()
                             }
                         }
 
                         retries.remove(url)
-                        Result(response)
+                        Result(HttpStatus(response.code), lastModified, entityTag)
                     }
 
-                    response.status == HttpStatusCode.RequestedRangeNotSatisfiable
-                        -> {
+                    response.code == 416 -> {
                         Log.w(
                             TAG,
                             "Failed to download file ($url) with Range: ${start?.let { "bytes=$it-" }}."
@@ -218,26 +174,23 @@ object Downloader {
                         )
                     }
 
-                    response.status == HttpStatusCode.GatewayTimeout || response.status == HttpStatusCode.RequestTimeout
-                        -> {
+                    response.code == 504 || response.code == 408 -> {
                         throw HttpResponseException(
                             "Failed to download file.",
-                            response.status,
+                            HttpStatus(response.code),
                         )
                     }
 
-                    response.status == HttpStatusCode.NotFound -> {
-                        Result(response)
-                    }
+                    response.code == 404 -> Result(HttpStatus.NotFound, "", "")
 
                     else -> {
                         Log.w(
                             TAG,
-                            "Failed to download file ($url). Response code ${response.status.value}:${response.status.description}."
+                            "Failed to download file ($url). Response code ${response.code}."
                         )
                         throw HttpResponseException(
                             "Failed to download file.",
-                            response.status,
+                            HttpStatus(response.code),
                         )
                     }
                 }
@@ -245,11 +198,13 @@ object Downloader {
         } catch (e: CancellationException) {
             retries.remove(url)
             throw e
+        } catch (e: DownloadSizeException) {
+            throw e
         } catch (e: Exception) {
             val leftRetries = retries.getOrPut(url) { AtomicInteger(3) }
             Log.w(
                 TAG,
-                "Download ($url) faced exception. Tries left: $leftRetries. Exception: ${e.message}.\nStack trace: ${e.stackTrace}."
+                "Download ($url) faced exception. Tries left: $leftRetries. Exception: ${e.message}."
             )
             if (leftRetries.decrementAndGet() > 0) {
                 retries[url] = leftRetries
@@ -262,10 +217,10 @@ object Downloader {
                     authentication = authentication,
                     callback = callback,
                 )
-            } else if (e is HttpRequestTimeoutException)
+            } else if (e is java.net.SocketTimeoutException)
                 throw HttpResponseException(
                     e.message ?: "Network Error",
-                    HttpStatusCode.RequestTimeout,
+                    HttpStatus.RequestTimeout,
                     e
                 )
             else throw e
@@ -288,9 +243,9 @@ object Downloader {
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_HIDDEN)
             .setDestinationUri(target.toUri())
             .apply {
-                addRequestHeader(HttpHeaders.Authorization, task.authentication)
-                addRequestHeader(HttpHeaders.AcceptEncoding, "gzip, deflate")
-                addRequestHeader(HttpHeaders.UserAgent, CLIENT_USER_AGENT)
+                addRequestHeader("Authorization", task.authentication)
+                addRequestHeader("Accept-Encoding", "gzip, deflate")
+                addRequestHeader("User-Agent", CLIENT_USER_AGENT)
             }
         val downloadManager =
             ContextCompat.getSystemService(context, DownloadManager::class.java)
@@ -300,7 +255,7 @@ object Downloader {
         var downloadStatus: Int
         var progressRead: Long
         var progressTotal: Long?
-        var response: HttpStatusCode
+        var response: HttpStatus
         var lastModified: Long?
         var cursor: Cursor
 
@@ -332,7 +287,7 @@ object Downloader {
                 cursor.getIntOrNull(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS))
                     ?: DownloadManager.STATUS_PENDING
 
-            response = responseStatus?.dmReasonToHttpResponse() ?: HttpStatusCode.OK
+            response = responseStatus?.dmReasonToHttpResponse() ?: HttpStatus.OK
 
             callback.invoke(progressStart + progressRead, progressTotal, downloadID)
 
@@ -356,81 +311,57 @@ object Downloader {
     }
 }
 
-private fun initDownloadClient(): HttpClient = HttpClient(OkHttp) {
-    engine {
-        pipelining = true
-        config {
-            connectionPool(
-                ConnectionPool(
-                    Preferences[Preferences.Key.MaxIdleConnections],
-                    POOL_DEFAULT_KEEP_ALIVE_DURATION_M,
-                    TimeUnit.MINUTES
-                )
-            )
-            retryOnConnectionFailure(true)
-            followRedirects(true)
-            followSslRedirects(true)
-            connectionSpecs(
-                listOf(
-                    ConnectionSpec.RESTRICTED_TLS,
-                    ConnectionSpec.MODERN_TLS,
-                    ConnectionSpec.CLEARTEXT
-                )
-            )
-            if (Preferences[Preferences.Key.DisableCertificateValidation]) {
-                val trustAllCerts = object : X509TrustManager {
-                    override fun checkClientTrusted(
-                        chain: Array<out X509Certificate>?,
-                        authType: String?
-                    ) {
-                    }
-
-                    override fun checkServerTrusted(
-                        chain: Array<out X509Certificate>?,
-                        authType: String?
-                    ) {
-                    }
-
-                    override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+private fun createDownloadClient(proxy: Proxy?): OkHttpClient = OkHttpClient.Builder()
+    .connectionPool(
+        ConnectionPool(
+            Preferences[Preferences.Key.MaxIdleConnections],
+            POOL_DEFAULT_KEEP_ALIVE_DURATION_M,
+            TimeUnit.MINUTES
+        )
+    )
+    .connectTimeout(CLIENT_CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+    .readTimeout(CLIENT_CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+    .writeTimeout(CLIENT_CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+    .retryOnConnectionFailure(true)
+    .followRedirects(true)
+    .followSslRedirects(true)
+    .proxy(proxy)
+    .connectionSpecs(
+        listOf(
+            ConnectionSpec.RESTRICTED_TLS,
+            ConnectionSpec.MODERN_TLS,
+            ConnectionSpec.CLEARTEXT
+        )
+    )
+    .apply {
+        if (Preferences[Preferences.Key.DisableCertificateValidation]) {
+            val trustAllCerts = object : X509TrustManager {
+                override fun checkClientTrusted(
+                    chain: Array<out X509Certificate>?,
+                    authType: String?
+                ) {
                 }
-                val sslContext = SSLContext.getInstance("TLS")
-                sslContext.init(null, arrayOf(trustAllCerts), SecureRandom())
-                val sslSocketFactory = sslContext.socketFactory
-                sslSocketFactory(sslSocketFactory, trustAllCerts)
-                hostnameVerifier { _, _ -> true }
+
+                override fun checkServerTrusted(
+                    chain: Array<out X509Certificate>?,
+                    authType: String?
+                ) {
+                }
+
+                override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
             }
+            val sslContext = SSLContext.getInstance("TLS")
+            sslContext.init(null, arrayOf(trustAllCerts), SecureRandom())
+            val sslSocketFactory = sslContext.socketFactory
+            sslSocketFactory(sslSocketFactory, trustAllCerts)
+            hostnameVerifier { _, _ -> true }
         }
     }
-    install(ContentEncoding) {
-        gzip()
-        deflate()
-    }
-    install(Logging) {
-        logger = Logger.ANDROID
-        level = LogLevel.INFO
-    }
-    install(HttpTimeout) {
-        connectTimeoutMillis = CLIENT_CONNECT_TIMEOUT_MS
-        socketTimeoutMillis = CLIENT_CONNECT_TIMEOUT_MS
-        requestTimeoutMillis = CLIENT_CONNECT_TIMEOUT_MS
-    }
-    install(BodyProgress)
-    install(HttpRequestRetry) {
-        retryOnException(2, true)
-        delayMillis { retryNr -> (2.0.pow(retryNr) * 1000).toLong() }
-    }
-    install(UserAgent) {
-        agent = CLIENT_USER_AGENT
-    }
-}
-
-val downloadClientModule = module {
-    singleOf(::initDownloadClient)
-}
+    .build()
 
 class DownloadSizeException(message: String, cause: Throwable? = null) : Exception(message, cause)
 class HttpResponseException(
     message: String,
-    val responseStatus: HttpStatusCode,
+    val responseStatus: HttpStatus,
     cause: Throwable? = null
 ) : Exception(message, cause)

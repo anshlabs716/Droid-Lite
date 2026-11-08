@@ -3,7 +3,6 @@ package com.machiav3lli.fdroid.ui.dialog
 import android.os.Bundle
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.DialogFragment
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.machiav3lli.fdroid.R
 import com.machiav3lli.fdroid.utils.startLauncherActivity
 
@@ -25,7 +24,7 @@ class LaunchDialog(val packageName: String) : DialogFragment() { // TODO replace
     override fun onCreateDialog(savedInstanceState: Bundle?): AlertDialog {
         val names = requireArguments().getStringArrayList(EXTRA_NAMES)!!
         val labels = requireArguments().getStringArrayList(EXTRA_LABELS)!!
-        return MaterialAlertDialogBuilder(requireContext())
+        return AlertDialog.Builder(requireContext())
             .setTitle(R.string.launch)
             .setItems(labels.toTypedArray()) { _, position ->
                 requireContext().startLauncherActivity(packageName, names[position])

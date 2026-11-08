@@ -30,7 +30,7 @@ import com.machiav3lli.fdroid.utils.ProgressInputStream
 import com.machiav3lli.fdroid.utils.extension.text.nullIfEmpty
 import com.machiav3lli.fdroid.utils.extension.text.unhex
 import com.machiav3lli.fdroid.utils.notifyDebugStatus
-import io.ktor.http.HttpStatusCode
+import com.machiav3lli.fdroid.manager.network.HttpStatus
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -157,7 +157,7 @@ object RepositoryUpdater : KoinComponent {
 
             !result.success      -> {
                 file.delete()
-                if (result.statusCode == HttpStatusCode.NotFound && indexTypes.size > 1) {
+                if (result.statusCode == HttpStatus.NotFound && indexTypes.size > 1) {
                     update(
                         context = context,
                         repository = repository,
@@ -319,7 +319,7 @@ object RepositoryUpdater : KoinComponent {
 
                 !result.success      -> {
                     diffFile.delete()
-                    if (result.statusCode == HttpStatusCode.NotFound) fallbackUpdate()
+                    if (result.statusCode == HttpStatus.NotFound) fallbackUpdate()
                     else {
                         throw UpdateException(
                             ErrorType.HTTP,

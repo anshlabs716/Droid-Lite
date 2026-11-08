@@ -3,34 +3,21 @@ package com.machiav3lli.fdroid.utils
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import androidx.core.net.toUri
-import com.anggrayudi.storage.StorageFile
-import com.anggrayudi.storage.copyTo
-import com.anggrayudi.storage.transfer.TransferResult
 import com.machiav3lli.fdroid.data.content.Preferences
+import java.io.File
 
 private const val TAG = "util.Storage"
 
-fun Context.getDownloadFolder(): StorageFile? = StorageFile
-    .from(this, Preferences[Preferences.Key.DownloadDirectory].toUri())
+fun Context.getDownloadFolder(): SafTree? =
+    SafTree.from(this, Preferences[Preferences.Key.DownloadDirectory])
 
-suspend fun StorageFile.copyTo(
-    downloadFolder: StorageFile
-) {
-    copyTo(
-        targetFolder = downloadFolder,
-    ).let { result ->
-        when (result) {
-            is TransferResult.Success
-                -> Log.d(TAG, "Completed result: ${result.result.name}")
-
-            is TransferResult.Failure
-                -> Log.e(TAG, result.errorCode.name, result.cause) // TODO add notification
-
-            is TransferResult.Skipped
-                -> Log.d(TAG, "Skipped as ${result.existingTarget} exists...")
-        }
+fun SafTree.copyIn(cacheFile: File): Boolean {
+    val copied = copyIn(cacheFile, cacheFile.name)
+    when {
+        copied -> Log.d(TAG, "Copied ${cacheFile.name} to download folder")
+        else   -> Log.e(TAG, "Failed to copy ${cacheFile.name} to download folder")
     }
+    return copied
 }
 
 val DOWNLOAD_DIRECTORY_INTENT = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)

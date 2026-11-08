@@ -14,8 +14,6 @@ import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
-import com.google.android.material.color.DynamicColors
-import com.google.android.material.color.DynamicColorsOptions
 import com.machiav3lli.fdroid.data.content.Cache
 import com.machiav3lli.fdroid.data.content.Preferences
 import com.machiav3lli.fdroid.data.database.DatabaseX
@@ -24,12 +22,10 @@ import com.machiav3lli.fdroid.data.entity.SyncRequest
 import com.machiav3lli.fdroid.data.index.RepositoryUpdater
 import com.machiav3lli.fdroid.data.repository.InstalledRepository
 import com.machiav3lli.fdroid.data.repository.RepositoriesRepository
-import com.machiav3lli.fdroid.data.repository.privacyModule
 import com.machiav3lli.fdroid.manager.installer.AppInstaller
 import com.machiav3lli.fdroid.manager.installer.installerModule
 import com.machiav3lli.fdroid.manager.network.CoilDownloader
 import com.machiav3lli.fdroid.manager.network.Downloader
-import com.machiav3lli.fdroid.manager.network.downloadClientModule
 import com.machiav3lli.fdroid.manager.service.PackageChangedReceiver
 import com.machiav3lli.fdroid.manager.work.BatchSyncWorker
 import com.machiav3lli.fdroid.manager.work.WorkerManager
@@ -38,8 +34,6 @@ import com.machiav3lli.fdroid.utils.LocaleChooser
 import com.machiav3lli.fdroid.utils.Utils.setLanguage
 import com.machiav3lli.fdroid.utils.Utils.toInstalledItem
 import com.machiav3lli.fdroid.utils.extension.android.Android
-import io.ktor.client.engine.ProxyBuilder
-import io.ktor.http.Url
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -55,6 +49,8 @@ import org.koin.dsl.koinConfiguration
 import org.koin.java.KoinJavaComponent.inject
 import org.lsposed.hiddenapibypass.HiddenApiBypass
 import java.lang.ref.WeakReference
+import androidx.core.net.toUri
+import java.net.InetSocketAddress
 import java.net.Proxy
 import java.util.Locale
 
@@ -98,12 +94,6 @@ class NeoApp : Application(), SingletonImageLoader.Factory, KoinStartup {
     override fun onCreate() {
         super.onCreate()
         val ioScope = CoroutineScope(Dispatchers.IO)
-        DynamicColors.applyToActivitiesIfAvailable(
-            this,
-            DynamicColorsOptions.Builder()
-                .setPrecondition { _, _ -> Preferences[Preferences.Key.AppTheme].dynamicColor }
-                .build()
-        )
         if (Android.sdk(Build.VERSION_CODES.P))
             HiddenApiBypass.addHiddenApiExemptions("I", "L")
         appRef = WeakReference(this)
@@ -129,12 +119,10 @@ class NeoApp : Application(), SingletonImageLoader.Factory, KoinStartup {
         androidContext(this@NeoApp)
         //analytics()
         modules(
-            downloadClientModule,
             workmanagerModule,
             databaseModule,
             viewModelsModule,
             installerModule,
-            privacyModule,
         )
     }
 
@@ -258,7 +246,8 @@ class NeoApp : Application(), SingletonImageLoader.Factory, KoinStartup {
 
             Proxy.Type.HTTP   -> {
                 try {
-                    ProxyBuilder.http(Url(url))
+                    val httpUrl = url.toUri()
+                    Proxy(Proxy.Type.HTTP, InetSocketAddress(httpUrl.host, httpUrl.port.takeIf { it > 0 } ?: 8080))
                 } catch (e: Exception) {
                     e.printStackTrace()
                     null
@@ -267,7 +256,7 @@ class NeoApp : Application(), SingletonImageLoader.Factory, KoinStartup {
 
             Proxy.Type.SOCKS  -> {
                 try {
-                    ProxyBuilder.socks(host, port)
+                    Proxy(Proxy.Type.SOCKS, InetSocketAddress(host, port))
                 } catch (e: Exception) {
                     e.printStackTrace()
                     null

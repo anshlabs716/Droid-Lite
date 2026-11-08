@@ -11,7 +11,6 @@ import com.machiav3lli.fdroid.POOL_DEFAULT_KEEP_ALIVE_DURATION_M
 import com.machiav3lli.fdroid.QUERY_AUTHENTICATION
 import com.machiav3lli.fdroid.data.content.Preferences
 import com.machiav3lli.fdroid.data.database.entity.Repository
-import io.ktor.http.HttpHeaders
 import okhttp3.Cache
 import okhttp3.Call
 import okhttp3.ConnectionPool
@@ -102,8 +101,8 @@ object CoilDownloader {
     }
 
     fun createCall(request: Request.Builder, authentication: String, cache: Cache?): Call {
-        val newRequest = request.removeHeader(HttpHeaders.UserAgent)
-            .addHeader(HttpHeaders.UserAgent, CLIENT_USER_AGENT)
+        val newRequest = request.removeHeader("User-Agent")
+            .addHeader("User-Agent", CLIENT_USER_AGENT)
             .apply {
                 if (authentication.isNotEmpty()) {
                     request.addHeader("Authorization", authentication)

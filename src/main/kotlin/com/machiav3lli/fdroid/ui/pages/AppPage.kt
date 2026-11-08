@@ -67,13 +67,11 @@ import com.machiav3lli.fdroid.data.entity.DialogKey
 import com.machiav3lli.fdroid.data.entity.DonateType
 import com.machiav3lli.fdroid.manager.network.createIconUri
 import com.machiav3lli.fdroid.manager.work.DownloadWorker
-import com.machiav3lli.fdroid.ui.components.ClientsChart
 import com.machiav3lli.fdroid.ui.components.ExpandableItemsBlock
 import com.machiav3lli.fdroid.ui.components.RoundButton
 import com.machiav3lli.fdroid.ui.components.ScreenshotItem
 import com.machiav3lli.fdroid.ui.components.ScreenshotList
 import com.machiav3lli.fdroid.ui.components.SegmentedTabButton
-import com.machiav3lli.fdroid.ui.components.SimpleLineChart
 import com.machiav3lli.fdroid.ui.components.SwitchRow
 import com.machiav3lli.fdroid.ui.components.appsheet.AppInfoChips
 import com.machiav3lli.fdroid.ui.components.appsheet.AppInfoHeader
@@ -85,7 +83,6 @@ import com.machiav3lli.fdroid.ui.components.appsheet.SourceCodeButton
 import com.machiav3lli.fdroid.ui.components.appsheet.TopBarHeader
 import com.machiav3lli.fdroid.ui.components.appsheet.WarningCard
 import com.machiav3lli.fdroid.ui.components.appsheet.appInfoChips
-import com.machiav3lli.fdroid.ui.components.appsheet.downloadInfoChips
 import com.machiav3lli.fdroid.ui.components.common.BottomSheet
 import com.machiav3lli.fdroid.ui.components.privacy.PrivacyIndicatorsBar
 import com.machiav3lli.fdroid.ui.compose.ProductsHorizontalRecycler
@@ -120,7 +117,6 @@ fun AppPage(
     val neoActivity = LocalActivity.current as NeoActivity
     val scope = rememberCoroutineScope()
     val showScreenshots = rememberSaveable { mutableStateOf(false) }
-    val statsTab = rememberSaveable { mutableIntStateOf(0) }
     val openDialog = remember { mutableStateOf(false) }
     val dialogKey: MutableState<DialogKey?> = remember { mutableStateOf(null) }
     val pagerState = rememberPagerState(pageCount = { 2 })
@@ -130,7 +126,6 @@ fun AppPage(
     val appState by viewModel.coreAppState.collectAsStateWithLifecycle()
     val extraState by viewModel.extraAppState.collectAsStateWithLifecycle()
     val privacyState by viewModel.privacyPanelState.collectAsStateWithLifecycle()
-    val downloadStatsState by viewModel.downloadStatsState.collectAsStateWithLifecycle()
 
     LaunchedEffect(packageName) {
         viewModel.setApp(packageName)
@@ -497,49 +492,6 @@ fun AppPage(
                                 }
                             }
                         }
-                        if (downloadStatsState.monthlyMap.isNotEmpty()) {
-                            item {
-                                ExpandableItemsBlock(
-                                    heading = stringResource(id = R.string.download_stats_iod),
-                                    preExpanded = false,
-                                ) {
-                                    AppInfoChips(downloadStatsState.info.downloadInfoChips())
-                                    SingleChoiceSegmentedButtonRow(
-                                        modifier = Modifier
-                                            .background(
-                                                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                                shape = MaterialTheme.shapes.extraLarge,
-                                            )
-                                            .padding(horizontal = 4.dp),
-                                    ) {
-                                        SegmentedTabButton(
-                                            text = stringResource(id = R.string.total),
-                                            icon = Phosphor.Download,
-                                            selected = {
-                                                statsTab.intValue == 0
-                                            },
-                                            onClick = {
-                                                statsTab.intValue = 0
-                                            },
-                                        )
-                                        SegmentedTabButton(
-                                            text = stringResource(id = R.string.clients),
-                                            icon = Phosphor.CirclesFour,
-                                            selected = {
-                                                statsTab.intValue == 1
-                                            },
-                                            onClick = {
-                                                statsTab.intValue = 1
-                                            },
-                                        )
-                                    }
-                                    when (statsTab.intValue) {
-                                        0 -> SimpleLineChart(downloadStatsState.monthlyMap)
-                                        1 -> ClientsChart(downloadStatsState.monthlyMap)
-                                    }
-                                }
-                            }
-                        }
                         item {
                             if (product.whatsNew.isNotEmpty()) {
                                 ExpandableItemsBlock(
@@ -659,13 +611,7 @@ fun AppPage(
                                         val action = pendingAction.value
 
                                         if (action != null) {
-                                            if (Preferences[Preferences.Key.ActionLockDialog] != Preferences.ActionLock.None) {
-                                                neoActivity.launchLockPrompt {
-                                                    viewModel.executeAction(action, context)
-                                                }
-                                            } else {
-                                                viewModel.executeAction(action, context)
-                                            }
+                                            viewModel.executeAction(action, context)
                                         }
                                         openDialog.value = false
                                         dialogKey.value = null

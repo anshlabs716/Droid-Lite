@@ -23,7 +23,6 @@ import android.text.format.DateUtils
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.biometric.BiometricManager
 import androidx.core.app.ActivityCompat
 import androidx.core.net.toUri
 import androidx.fragment.app.FragmentManager
@@ -51,16 +50,14 @@ import com.machiav3lli.fdroid.ui.compose.icons.phosphor.Copyleft
 import com.machiav3lli.fdroid.ui.compose.icons.phosphor.GlobeSimple
 import com.machiav3lli.fdroid.ui.compose.icons.phosphor.Translate
 import com.machiav3lli.fdroid.ui.compose.icons.phosphor.User
-import com.machiav3lli.fdroid.ui.compose.theme.presetColors
 import com.machiav3lli.fdroid.ui.dialog.LaunchDialog
 import com.machiav3lli.fdroid.utils.extension.android.Android
 import com.machiav3lli.fdroid.utils.extension.android.signerSHA256Signatures
 import com.machiav3lli.fdroid.utils.extension.android.versionCodeCompat
 import com.machiav3lli.fdroid.utils.extension.text.hex
 import com.machiav3lli.fdroid.utils.extension.text.nullIfEmpty
-import com.materialkolor.Contrast
 import com.topjohnwu.superuser.Shell
-import io.ktor.http.HttpStatusCode
+import com.machiav3lli.fdroid.manager.network.HttpStatus
 import rikka.shizuku.Shizuku
 import rikka.sui.Sui
 import java.security.MessageDigest
@@ -224,27 +221,12 @@ object Utils {
 
         if (theme.dynamicColor) return "${getString(R.string.dynamic_theme)} $nightModeStr"
 
-        val colorStr = getString(
-            presetColors[theme.seedColor]
-                ?: R.string.color_green
-        )
-
         val base = if (theme.blackOnDark && isDarkTheme) {
-            "${getString(R.string.amoled)} $colorStr"
+            "${getString(R.string.amoled)} $nightModeStr"
         } else {
-            "$nightModeStr $colorStr"
+            nightModeStr
         }
-
-        return if (theme.contrast != Contrast.Default.value) {
-            val contrastStr = when (theme.contrast) {
-                Contrast.Medium.value -> getString(R.string.contrast_medium)
-                Contrast.High.value   -> getString(R.string.contrast_high)
-                else                  -> getString(R.string.contrast_default)
-            }
-            "$base ($contrastStr)"
-        } else {
-            base
-        }
+        return base
     }
 
     /**
@@ -254,7 +236,7 @@ object Utils {
         val appProcessInfo = ActivityManager.RunningAppProcessInfo()
         ActivityManager.getMyMemoryState(appProcessInfo)
         val importance = appProcessInfo.importance
-        return ((importance == IMPORTANCE_FOREGROUND) or (importance == IMPORTANCE_VISIBLE))
+        return ((importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) or (importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE))
     }
 
     private val charactersToBeEscaped = Regex("""[\\${'$'}"`]""")
@@ -412,16 +394,16 @@ fun Context.shareText(title: String, content: String) {
 }
 
 fun Int.dmReasonToHttpResponse() = when (this) {
-    DownloadManager.ERROR_UNKNOWN             -> HttpStatusCode.NotImplemented
-    DownloadManager.ERROR_FILE_ERROR          -> HttpStatusCode.Conflict
-    DownloadManager.ERROR_UNHANDLED_HTTP_CODE -> HttpStatusCode.NotImplemented
-    DownloadManager.ERROR_HTTP_DATA_ERROR     -> HttpStatusCode.BadRequest
-    DownloadManager.ERROR_TOO_MANY_REDIRECTS  -> HttpStatusCode.GatewayTimeout
-    DownloadManager.ERROR_INSUFFICIENT_SPACE  -> HttpStatusCode.InsufficientStorage
-    DownloadManager.ERROR_DEVICE_NOT_FOUND    -> HttpStatusCode.NotFound
-    DownloadManager.ERROR_CANNOT_RESUME       -> HttpStatusCode.RequestedRangeNotSatisfiable
-    DownloadManager.ERROR_FILE_ALREADY_EXISTS -> HttpStatusCode.NotModified
-    else                                      -> HttpStatusCode.OK
+    DownloadManager.ERROR_UNKNOWN             -> HttpStatus.NotImplemented
+    DownloadManager.ERROR_FILE_ERROR          -> HttpStatus.Conflict
+    DownloadManager.ERROR_UNHANDLED_HTTP_CODE -> HttpStatus.NotImplemented
+    DownloadManager.ERROR_HTTP_DATA_ERROR     -> HttpStatus.BadRequest
+    DownloadManager.ERROR_TOO_MANY_REDIRECTS  -> HttpStatus.GatewayTimeout
+    DownloadManager.ERROR_INSUFFICIENT_SPACE  -> HttpStatus.InsufficientStorage
+    DownloadManager.ERROR_DEVICE_NOT_FOUND    -> HttpStatus.NotFound
+    DownloadManager.ERROR_CANNOT_RESUME       -> HttpStatus.RequestedRangeNotSatisfiable
+    DownloadManager.ERROR_FILE_ALREADY_EXISTS -> HttpStatus.NotModified
+    else                                      -> HttpStatus.OK
 }
 
 fun Context.openPermissionPage(packageName: String) {
@@ -635,14 +617,6 @@ fun virustotalUrl(hash: String): Uri = "https://www.virustotal.com/gui/file/$has
 fun Context.getHasSystemInstallPermission(): Boolean =
     ActivityCompat.checkSelfPermission(this, Manifest.permission.INSTALL_PACKAGES) ==
             PackageManager.PERMISSION_GRANTED
-
-fun Context.isBiometricLockAvailable(): Boolean =
-    BiometricManager.from(this).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK) ==
-            BiometricManager.BIOMETRIC_SUCCESS
-
-fun Context.isBiometricLockEnabled(): Boolean =
-    isBiometricLockAvailable() &&
-            Preferences[Preferences.Key.ActionLockDialog] == Preferences.ActionLock.Biometric
 
 fun Context.isDefaultAppHandler(): Boolean {
     val intentIzzy =

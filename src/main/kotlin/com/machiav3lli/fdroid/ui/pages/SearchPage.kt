@@ -388,15 +388,8 @@ fun SearchPage(
                     key = dialogKey.value,
                     openDialog = openDialog,
                     primaryAction = {
-                        if (Preferences[Preferences.Key.ActionLockDialog] != Preferences.ActionLock.None)
-                            neoActivity.launchLockPrompt {
-                                (dialogKey.value as DialogKey.Download).action()
+                                                        (dialogKey.value as DialogKey.Download).action()
                                 openDialog.value = false
-                            }
-                        else {
-                            (dialogKey.value as DialogKey.Download).action()
-                            openDialog.value = false
-                        }
                     },
                     onDismiss = {
                         dialogKey.value = null

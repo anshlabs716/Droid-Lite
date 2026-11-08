@@ -8,7 +8,6 @@ import com.machiav3lli.fdroid.data.database.entity.Installed
 import com.machiav3lli.fdroid.data.entity.ProductItem
 import com.machiav3lli.fdroid.data.entity.Request
 import com.machiav3lli.fdroid.data.entity.Source
-import com.machiav3lli.fdroid.data.entity.TopDownloadType
 import com.machiav3lli.fdroid.data.repository.ExtrasRepository
 import com.machiav3lli.fdroid.data.repository.InstalledRepository
 import com.machiav3lli.fdroid.data.repository.ProductsRepository
@@ -33,8 +32,6 @@ class ExploreVM(
 ) : ViewModel() {
     private val sortFilter = MutableStateFlow("")
     private val source = MutableStateFlow(Source.NONE)
-    private val topAppType = MutableStateFlow(TopDownloadType.TOTAL_RECENT)
-
     private val installed = installedRepo.getMap()
         .stateIn(
             scope = viewModelScope,
@@ -52,14 +49,6 @@ class ExploreVM(
         }
     }
         .distinctUntilChanged()
-
-    private val topApps = topAppType.flatMapLatest {
-        when (it) {
-            TopDownloadType.TOTAL_ALLTIME -> productsRepo.getAllTimeTopApps()
-            TopDownloadType.TOTAL_RECENT  -> productsRepo.getRecentTopApps(it.key, 3)
-            else                          -> productsRepo.getRecentTopApps(it.key, 1)
-        }
-    }
 
     val categoryProductsState: StateFlow<CategoryProductsState> = combine(
         sortFilter,
@@ -98,36 +87,7 @@ class ExploreVM(
         initialValue = CategoryProductsState()
     )
 
-    val topProductsState: StateFlow<TopProductsState> = combine(
-        topAppType,
-        productsRepo.getDownloadStatsNotEmpty(),
-        topApps.flatMapLatest { tops ->
-            val packageToIndex = tops.mapIndexed { index, top ->
-                top.packageName to index
-            }.toMap()
-
-            productsRepo.getSpecificProducts(tops.map { it.packageName }.toSet())
-                .map { products ->
-                    products.sortedBy { packageToIndex[it.product.packageName] ?: Int.MAX_VALUE }
-                }
-        },
-        installed,
-    ) { topAppType, statsNotEmpty, topDownloaded, installed ->
-        TopProductsState(
-            statsNotEmpty = statsNotEmpty,
-            topAppType = topAppType,
-            items = topDownloaded.map { it.toItem(installed[it.product.packageName]) },
-            installedMap = installed,
-        )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.Lazily,
-        initialValue = TopProductsState()
-    )
-
     fun setSortFilter(value: String) = sortFilter.update { value }
-
-    fun setTopAppsType(type: TopDownloadType) = topAppType.update { type }
 
     fun setExploreSource(newSource: Source) = source.update { newSource }
 
@@ -139,13 +99,6 @@ class ExploreVM(
 data class CategoryProductsState(
     val sortFilter: String = "",
     val categories: List<CategoryDetails> = emptyList(),
-    val items: List<ProductItem> = emptyList(),
-    val installedMap: Map<String, Installed> = emptyMap(),
-)
-
-data class TopProductsState(
-    val statsNotEmpty: Boolean = false,
-    val topAppType: TopDownloadType = TopDownloadType.TOTAL_RECENT,
     val items: List<ProductItem> = emptyList(),
     val installedMap: Map<String, Installed> = emptyMap(),
 )

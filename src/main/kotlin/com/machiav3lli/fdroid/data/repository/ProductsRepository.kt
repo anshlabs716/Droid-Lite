@@ -1,20 +1,16 @@
 package com.machiav3lli.fdroid.data.repository
 
 import com.machiav3lli.fdroid.data.database.dao.CategoryDao
-import com.machiav3lli.fdroid.data.database.dao.DownloadStatsDao
 import com.machiav3lli.fdroid.data.database.dao.ProductDao
 import com.machiav3lli.fdroid.data.database.dao.RepoCategoryDao
 import com.machiav3lli.fdroid.data.database.entity.CategoryDetails
 import com.machiav3lli.fdroid.data.database.entity.EmbeddedProduct
 import com.machiav3lli.fdroid.data.database.entity.Licenses
-import com.machiav3lli.fdroid.data.database.entity.PackageSum
 import com.machiav3lli.fdroid.data.database.entity.Product
 import com.machiav3lli.fdroid.data.database.entity.ProductIconDetails
 import com.machiav3lli.fdroid.data.entity.Order
 import com.machiav3lli.fdroid.data.entity.Request
 import com.machiav3lli.fdroid.data.entity.Section
-import com.machiav3lli.fdroid.utils.extension.text.getIsoDateOfMonthsAgo
-import com.machiav3lli.fdroid.utils.extension.text.isoDateToInt
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.mapLatest
@@ -24,11 +20,8 @@ class ProductsRepository(
     private val productsDao: ProductDao,
     private val categoryDao: CategoryDao,
     private val repoCategoryDao: RepoCategoryDao,
-    private val downloadStatsDao: DownloadStatsDao,
 ) {
     suspend fun upsertProduct(vararg product: Product) = productsDao.upsert(*product)
-
-    fun getDownloadStatsNotEmpty(): Flow<Boolean> = downloadStatsDao.isNotEmpty()
 
     fun getProducts(req: Request): Flow<List<EmbeddedProduct>> = productsDao.queryFlowList(req)
 
@@ -40,16 +33,6 @@ class ProductsRepository(
 
     fun getSpecificProducts(pkgs: Set<String>): Flow<List<EmbeddedProduct>> =
         productsDao.queryFlowOfPackages(pkgs)
-
-    fun getRecentTopApps(client: String, numMonths: Int = 3): Flow<List<PackageSum>> =
-        downloadStatsDao.getFlowRecentTopApps(
-            getIsoDateOfMonthsAgo(numMonths).isoDateToInt(),
-            50,
-            client
-        )
-
-    fun getAllTimeTopApps(): Flow<List<PackageSum>> =
-        downloadStatsDao.getFlowRecentTopApps(getIsoDateOfMonthsAgo(100).isoDateToInt(), 50)
 
     fun getAuthorList(author: String): Flow<List<EmbeddedProduct>> =
         productsDao.getAuthorPackagesFlow(author)

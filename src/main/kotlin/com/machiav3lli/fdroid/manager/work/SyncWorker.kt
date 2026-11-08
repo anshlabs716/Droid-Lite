@@ -1,6 +1,5 @@
 package com.machiav3lli.fdroid.manager.work
 
-import com.machiav3lli.fdroid.DOWNLOAD_STATS_SYNC
 import com.machiav3lli.fdroid.NeoApp
 import com.machiav3lli.fdroid.RB_LOGS_SYNC
 import com.machiav3lli.fdroid.data.database.entity.Repository
@@ -14,7 +13,6 @@ object SyncWorker {
 
             when (repoId) {
                 RB_LOGS_SYNC         -> RBWorker.fetchRBLogs()
-                DOWNLOAD_STATS_SYNC  -> DownloadStatsWorker.enqueuePeriodic()
                 else                 -> {
                     BatchSyncWorker.enqueue(
                         request = SyncRequest.MANUAL,

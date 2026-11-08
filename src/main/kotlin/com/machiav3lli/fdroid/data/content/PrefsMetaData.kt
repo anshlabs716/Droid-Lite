@@ -217,10 +217,6 @@ val NonBooleanPrefsMeta = mapOf(
         R.string.prefs_installer,
         Phosphor.Wrench
     ),
-    Preferences.Key.ActionLockDialog to Pair(
-        R.string.action_lock_dialog,
-        Phosphor.Lock
-    ),
     Preferences.Key.DownloadDirectory to Pair(
         R.string.custom_download_directory,
         Phosphor.FolderNotch
@@ -261,10 +257,6 @@ val NonBooleanPrefsMeta = mapOf(
         R.string.rb_provider,
         Phosphor.Compass
     ),
-    Preferences.Key.DLStatsProvider to Pair(
-        R.string.dlstats_provider,
-        Phosphor.Compass
-    ),
     Preferences.Key.PackagesBlocklist to Pair(
         R.string.packages_blocklist,
         Phosphor.ProhibitInset
@@ -280,11 +272,6 @@ val PrefsEntries = mapOf(
         Preferences.DefaultTab.Latest to R.string.latest,
         Preferences.DefaultTab.Explore to R.string.explore,
         Preferences.DefaultTab.Installed to R.string.installed,
-    ),
-    Preferences.Key.ActionLockDialog to mapOf(
-        Preferences.ActionLock.None to R.string.action_lock_none,
-        Preferences.ActionLock.Device to R.string.action_lock_device,
-        Preferences.ActionLock.Biometric to R.string.action_lock_biometric,
     ),
     Preferences.Key.Installer to mapOf(
         Preferences.Installer.Default to R.string.default_installer,
@@ -310,10 +297,6 @@ val PrefsEntries = mapOf(
         Preferences.RBProvider.None to R.string.rb_none,
         Preferences.RBProvider.IzzyOnDroid to R.string.rb_izzyondroid,
         Preferences.RBProvider.BG443 to R.string.rb_bg443,
-    ),
-    Preferences.Key.DLStatsProvider to mapOf(
-        Preferences.DLStatsProvider.None to R.string.dlstats_none,
-        Preferences.DLStatsProvider.IzzyOnDroid to R.string.dlstats_izzyondroid,
     ),
 )
 
@@ -356,10 +339,6 @@ val PrefsDependencies = mapOf(
     Preferences.Key.ProxyPort to Pair(
         Preferences.Key.ProxyType,
         listOf(Preferences.ProxyType.Socks)
-    ),
-    Preferences.Key.ActionLockDialog to Pair(
-        Preferences.Key.DownloadShowDialog,
-        listOf(true)
     ),
     Preferences.Key.KidsMode to Pair(
         Preferences.Key.KidsMode,

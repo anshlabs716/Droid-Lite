@@ -42,7 +42,7 @@ import com.machiav3lli.fdroid.utils.extension.android.Android
 import com.machiav3lli.fdroid.utils.extension.android.notificationManager
 import com.machiav3lli.fdroid.utils.extension.resources.getColorFromAttr
 import com.machiav3lli.fdroid.utils.extension.text.formatSize
-import io.ktor.http.HttpStatusCode
+import com.machiav3lli.fdroid.manager.network.HttpStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -334,7 +334,7 @@ fun NotificationCompat.Builder.updateWithError(
                 ValidationError.FILE_SIZE            -> context.getString(R.string.file_size_error_DESC)
                 ValidationError.SENSITIVE_PERMISSION -> context.getString(R.string.sensitive_permission_error_DESC)
                 ValidationError.UNKNOWN              -> context.getString(R.string.unknown_error_DESC)
-                ValidationError.CONNECTION           -> HttpStatusCode.fromValue(state.resultCode)
+                ValidationError.CONNECTION           -> HttpStatus.fromValue(state.resultCode)
                     .let {
                         context.getString(
                             R.string.connection_error_FORMAT,

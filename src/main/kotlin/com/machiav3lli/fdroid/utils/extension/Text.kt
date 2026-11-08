@@ -4,12 +4,9 @@ package com.machiav3lli.fdroid.utils.extension.text
 
 import android.net.Uri
 import android.util.Log
-import kotlinx.datetime.DatePeriod
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.YearMonth
-import kotlinx.datetime.minus
-import kotlinx.datetime.number
-import kotlinx.datetime.toLocalDateTime
+import java.time.LocalDate
+import java.time.YearMonth
+import java.time.ZoneId
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
@@ -53,10 +50,8 @@ fun Uri.toAddressFingerprint() = try {
     Pair("", "")
 }
 
-@OptIn(ExperimentalTime::class)
-fun getIsoDateOfMonthsAgo(months: Int): String = Clock.System.now()
-    .toLocalDateTime(TimeZone.currentSystemDefault()).date
-    .minus(DatePeriod(months = months, days = 1)).toString()
+fun getIsoDateOfMonthsAgo(months: Int): String =
+    LocalDate.now(ZoneId.systemDefault()).minusMonths(months.toLong()).minusDays(1).toString()
 
 val String.pathCropped: String
     get() {
@@ -99,9 +94,7 @@ fun String.isoDateToInt(): Int {
     }
 }
 
-fun YearMonth.toInt(): Int = firstDay.let { localDate ->
-    localDate.year * 10_000 + localDate.month.number * 100 + 0
-}
+fun YearMonth.toInt(): Int = year * 10_000 + monthValue * 100
 
 fun Int.intToIsoDate(): String {
     val s = toString()

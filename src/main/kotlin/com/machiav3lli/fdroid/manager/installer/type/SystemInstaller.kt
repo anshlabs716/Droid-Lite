@@ -13,8 +13,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.io.IOException
-import kotlinx.io.files.FileNotFoundException
+import java.io.IOException
+import java.io.FileNotFoundException
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream

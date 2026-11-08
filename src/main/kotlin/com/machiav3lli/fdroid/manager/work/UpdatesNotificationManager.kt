@@ -21,7 +21,8 @@ import com.machiav3lli.fdroid.NeoApp
 import com.machiav3lli.fdroid.R
 import com.machiav3lli.fdroid.data.entity.ProductItem
 import com.machiav3lli.fdroid.manager.service.ActionReceiver
-import io.ktor.util.collections.ConcurrentSet
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -30,7 +31,7 @@ class UpdatesNotificationManager(
     private val notificationManager: NotificationManagerCompat,
 ) {
     private val mutex = Mutex()
-    private val possibleUpdates = ConcurrentSet<ProductItem>()
+    private val possibleUpdates = Collections.newSetFromMap(ConcurrentHashMap<ProductItem, Boolean>())
     private val langContext: Context get() = NeoApp.langContext
 
     suspend fun addUpdates(vararg products: ProductItem) = mutex.withLock {
