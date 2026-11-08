@@ -1,0 +1,5 @@
+Adicionado: Diálogo de confirmação ao remover módulo root
+Adicionado: Pressão longa no botão de sincronização para obter a última sincronização bem-sucedida
+Corrigido: Ordenação do filtro de listas por páginas
+Removido: Todos os repositórios arquivados
++ mais de 10 commits e 10 contribuições de tradução

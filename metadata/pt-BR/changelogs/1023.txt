@@ -1,0 +1,9 @@
+Adicionado: Excluir arquivo ao apagar download
+Adicionado: Filtros de TargetSDK e MinSDK
+Corrigido: Carregamento lento de apps
+Corrigido: App não aparecendo na tela inicial
+Atualizado: Interface para telas largas
+Atualizado: Melhor compartilhamento do F-Droid
+Atualizado: Evita pedir permissão INSTALL_PACKAGES
+Repos: Fcitx5 e IronFox adicionados
+Mais de 140 commits e 100 traduções

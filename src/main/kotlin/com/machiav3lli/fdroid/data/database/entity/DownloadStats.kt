@@ -1,0 +1,157 @@
+package com.machiav3lli.fdroid.data.database.entity
+
+import androidx.room.ColumnInfo
+import androidx.room.DatabaseView
+import androidx.room.Entity
+import androidx.room.Index
+import com.machiav3lli.fdroid.ROW_CLIENT
+import com.machiav3lli.fdroid.ROW_ISO_DATE
+import com.machiav3lli.fdroid.ROW_PACKAGE_NAME
+import com.machiav3lli.fdroid.ROW_SOURCE
+import com.machiav3lli.fdroid.TABLE_DOWNLOAD_STATS
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
+import java.io.InputStream
+
+@Entity(
+    tableName = TABLE_DOWNLOAD_STATS,
+    primaryKeys = [ROW_PACKAGE_NAME, ROW_ISO_DATE, ROW_CLIENT, ROW_SOURCE],
+    indices = [
+        Index(value = [ROW_PACKAGE_NAME, ROW_ISO_DATE, ROW_CLIENT, ROW_SOURCE], unique = true),
+        Index(value = [ROW_PACKAGE_NAME, ROW_ISO_DATE]),
+        Index(value = [ROW_PACKAGE_NAME]),
+        Index(value = [ROW_CLIENT]),
+        Index(value = [ROW_ISO_DATE]),
+    ]
+)
+data class DownloadStats(
+    @ColumnInfo(name = ROW_PACKAGE_NAME)
+    val packageName: String,
+    // formatted from iso as YYYYMMDD
+    @ColumnInfo(name = ROW_ISO_DATE)
+    val date: Int,
+    val client: String,
+    val source: String,
+    val count: Long
+)
+
+@Serializable
+data class ClientCounts(
+    @SerialName("F-Droid")
+    val fDroid: Long = 0,
+    @SerialName("F-Droid Classic")
+    val fDroidClassic: Long = 0,
+    @SerialName("Neo Store")
+    val neoStore: Long = 0,
+    @SerialName("Droid-ify")
+    val droidify: Long = 0,
+    @SerialName("Flicky")
+    val flicky: Long = 0,
+    @SerialName("Florid")
+    val florid: Long = 0,
+    @SerialName("_total")
+    val total: Long = 0,
+    @SerialName("_unknown")
+    val unknown: Long = 0,
+)
+
+@Serializable
+class DownloadStatsData {
+    fun toJSON() = Json.encodeToString(this)
+
+    companion object {
+        private val jsonConfig = Json {
+            ignoreUnknownKeys = true
+            prettyPrint = true
+        }
+
+        fun fromJson(json: String) =
+            jsonConfig.decodeFromString<Map<String, ClientCounts>>(json)
+
+        @OptIn(ExperimentalSerializationApi::class)
+        fun fromStream(inst: InputStream) =
+            jsonConfig.decodeFromStream<Map<String, ClientCounts>>(inst)
+    }
+}
+
+fun Map<String, ClientCounts>.toDownloadStats(isoDateInt: Int): Set<DownloadStats> {
+    val result = mutableSetOf<DownloadStats>()
+
+    for ((packageName, clientCounts) in this) {
+        // Add a row only when the count is > 0
+        fun addIfPositive(client: String, count: Long) {
+            if (count > 0) {
+                result += DownloadStats(
+                    packageName = packageName,
+                    date = isoDateInt,
+                    client = client,
+                    // TODO update in future when new stats are hosted or mirrors are supported o
+                    source = "izzyOnDroid",
+                    count = count
+                )
+            }
+        }
+
+        // Map each client field to its corresponding name used in the DB
+        addIfPositive("F-Droid", clientCounts.fDroid)
+        addIfPositive("F-Droid Classic", clientCounts.fDroidClassic)
+        addIfPositive("Neo Store", clientCounts.neoStore)
+        addIfPositive("Droid-ify", clientCounts.droidify)
+        addIfPositive("Flicky", clientCounts.flicky)
+        addIfPositive("Florid", clientCounts.florid)
+        addIfPositive("_total", clientCounts.total)
+        addIfPositive("_unknown", clientCounts.unknown)
+    }
+
+    return result
+}
+
+@DatabaseView(
+    """
+        SELECT $ROW_PACKAGE_NAME   AS packageName,
+               SUM(count)          AS totalCount
+        FROM   download_stats
+        WHERE client = '_total'
+        GROUP BY $ROW_PACKAGE_NAME
+    """
+)
+data class PackageSum(
+    val packageName: String,
+    val totalCount: String
+)
+
+@DatabaseView(
+    """
+        SELECT $ROW_PACKAGE_NAME   AS packageName,
+               client              AS client,
+               SUM(count)          AS totalCount
+        FROM   download_stats
+        GROUP BY $ROW_PACKAGE_NAME, client
+    """
+)
+data class ClientPackageSum(
+    val packageName: String,
+    val client: String,
+    val totalCount: Long
+)
+
+@DatabaseView(
+    """
+        SELECT $ROW_PACKAGE_NAME      AS packageName,
+               client                 AS client,
+               ($ROW_ISO_DATE / 100)  AS yearMonth,
+               SUM(count)             AS totalCount
+        FROM   download_stats
+        GROUP BY $ROW_PACKAGE_NAME, client, yearMonth
+    """
+)
+data class MonthlyPackageSum(
+    val packageName: String,
+    val client: String,
+    // formatted from iso as YYYYMM
+    val yearMonth: Int,
+    val totalCount: Long
+)

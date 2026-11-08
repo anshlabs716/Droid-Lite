@@ -1,0 +1,7 @@
+Adicionado: Opção para desativar o modo lista-detalhe em ecrãs largos
+Adicionado: Filtro de favoritos na página de busca
+Adicionado: Ligação de tradução na página da app
+Corrigido: Fallback para ícones mal processados no repositório
+Atualizado: Combina apps atualizadas e descargas em andamento numa barra flutuante
+Atualizado: Reformulação do layout das estatísticas de descargas
+E muito mais em mais de 50 commits e 10 contribuições de tradução

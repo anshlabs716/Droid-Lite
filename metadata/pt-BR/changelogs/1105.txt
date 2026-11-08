@@ -1,0 +1,8 @@
+Adicionado: Ícones para novas categorias do F-Droid
+Adicionado: Notificação de permissões sensíveis exigidas em atualizações
+Corrigido: Versão sugerida no index-V2
+Corrigido: Divisão por zero se index v2 não for suportado no SyncWorker
+Corrigido: Sincronização de repositório causando crash silencioso de memória
+Corrigido: Parsing de itens en-SHAW em locais não en-US
+Atualizado: Novo layout e cores rumo ao Material 3 Expressivo
+E muito mais em mais de 20 commits e 1 contribuição

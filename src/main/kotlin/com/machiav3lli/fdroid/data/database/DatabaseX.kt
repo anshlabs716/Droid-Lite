@@ -1,0 +1,753 @@
+package com.machiav3lli.fdroid.data.database
+
+import android.content.Context
+import android.util.Log
+import androidx.room.AutoMigration
+import androidx.room.Database
+import androidx.room.DeleteColumn
+import androidx.room.DeleteTable
+import androidx.room.RenameColumn
+import androidx.room.RenameTable
+import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
+import androidx.room.migration.AutoMigrationSpec
+import androidx.room.withTransaction
+import androidx.sqlite.db.SupportSQLiteDatabase
+import com.machiav3lli.fdroid.ROW_ID
+import com.machiav3lli.fdroid.TABLE_EXODUS_INFO
+import com.machiav3lli.fdroid.TABLE_INSTALLED
+import com.machiav3lli.fdroid.TABLE_INSTALL_TASK
+import com.machiav3lli.fdroid.TABLE_REPOSITORY
+import com.machiav3lli.fdroid.TABLE_TRACKER
+import com.machiav3lli.fdroid.data.database.DatabaseX.Companion.dbCreateCallback
+import com.machiav3lli.fdroid.data.database.dao.AntiFeatureDao
+import com.machiav3lli.fdroid.data.database.dao.AntiFeatureTempDao
+import com.machiav3lli.fdroid.data.database.dao.CategoryDao
+import com.machiav3lli.fdroid.data.database.dao.CategoryTempDao
+import com.machiav3lli.fdroid.data.database.dao.DownloadStatsDao
+import com.machiav3lli.fdroid.data.database.dao.DownloadStatsFileDao
+import com.machiav3lli.fdroid.data.database.dao.DownloadedDao
+import com.machiav3lli.fdroid.data.database.dao.ExtrasDao
+import com.machiav3lli.fdroid.data.database.dao.InstallTaskDao
+import com.machiav3lli.fdroid.data.database.dao.InstalledDao
+import com.machiav3lli.fdroid.data.database.dao.ProductDao
+import com.machiav3lli.fdroid.data.database.dao.ProductTempDao
+import com.machiav3lli.fdroid.data.database.dao.RBLogDao
+import com.machiav3lli.fdroid.data.database.dao.ReleaseDao
+import com.machiav3lli.fdroid.data.database.dao.ReleaseTempDao
+import com.machiav3lli.fdroid.data.database.dao.RepoCategoryDao
+import com.machiav3lli.fdroid.data.database.dao.RepoCategoryTempDao
+import com.machiav3lli.fdroid.data.database.dao.RepositoryDao
+import com.machiav3lli.fdroid.data.database.entity.AntiFeature
+import com.machiav3lli.fdroid.data.database.entity.AntiFeatureTemp
+import com.machiav3lli.fdroid.data.database.entity.Category
+import com.machiav3lli.fdroid.data.database.entity.CategoryTemp
+import com.machiav3lli.fdroid.data.database.entity.ClientPackageSum
+import com.machiav3lli.fdroid.data.database.entity.DownloadStats
+import com.machiav3lli.fdroid.data.database.entity.DownloadStatsFileMetadata
+import com.machiav3lli.fdroid.data.database.entity.Downloaded
+import com.machiav3lli.fdroid.data.database.entity.ExodusInfo
+import com.machiav3lli.fdroid.data.database.entity.Extras
+import com.machiav3lli.fdroid.data.database.entity.InstallTask
+import com.machiav3lli.fdroid.data.database.entity.Installed
+import com.machiav3lli.fdroid.data.database.entity.MonthlyPackageSum
+import com.machiav3lli.fdroid.data.database.entity.PackageSum
+import com.machiav3lli.fdroid.data.database.entity.Product
+import com.machiav3lli.fdroid.data.database.entity.ProductIconDetails
+import com.machiav3lli.fdroid.data.database.entity.ProductTemp
+import com.machiav3lli.fdroid.data.database.entity.RBLog
+import com.machiav3lli.fdroid.data.database.entity.Release
+import com.machiav3lli.fdroid.data.database.entity.ReleaseTemp
+import com.machiav3lli.fdroid.data.database.entity.RepoCategory
+import com.machiav3lli.fdroid.data.database.entity.RepoCategoryTemp
+import com.machiav3lli.fdroid.data.database.entity.Repository
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.addedReposV10
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.addedReposV11
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.addedReposV1102
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.addedReposV1107
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.addedReposV12
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.addedReposV1207
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.addedReposV1210
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.addedReposV14
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.addedReposV15
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.addedReposV17
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.addedReposV18
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.addedReposV19
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.addedReposV20
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.addedReposV21
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.addedReposV22
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.addedReposV23
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.addedReposV29
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.addedReposV30
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.addedReposV9
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.archiveRepos
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.defaultRepositories
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.removedReposV1107
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.removedReposV1201
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.removedReposV1210
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.removedReposV28
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.removedReposV29
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.removedReposV31
+import com.machiav3lli.fdroid.data.database.entity.Repository.Companion.updatedReposV1201
+import com.machiav3lli.fdroid.data.database.entity.Tracker
+import com.machiav3lli.fdroid.manager.work.SyncWorker.enableRepo
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import org.koin.core.module.dsl.singleOf
+import org.koin.dsl.module
+import org.koin.java.KoinJavaComponent.get
+import java.io.File
+
+@Database(
+    entities = [
+        Repository::class,
+        Product::class,
+        Release::class,
+        ReleaseTemp::class,
+        ProductTemp::class,
+        Category::class,
+        CategoryTemp::class,
+        RepoCategory::class,
+        RepoCategoryTemp::class,
+        Installed::class,
+        Extras::class,
+        ExodusInfo::class,
+        Tracker::class,
+        Downloaded::class,
+        InstallTask::class,
+        AntiFeature::class,
+        AntiFeatureTemp::class,
+        RBLog::class,
+        DownloadStats::class,
+        DownloadStatsFileMetadata::class,
+    ],
+    version = 1304,
+    exportSchema = true,
+    views = [
+        PackageSum::class,
+        ClientPackageSum::class,
+        MonthlyPackageSum::class,
+        ProductIconDetails::class,
+    ],
+    autoMigrations = [
+        AutoMigration(
+            from = 8,
+            to = 9,
+            spec = DatabaseX.Companion.MigrationSpec8to9::class
+        ),
+        AutoMigration(
+            from = 9,
+            to = 10,
+            spec = DatabaseX.Companion.MigrationSpec9to10::class
+        ),
+        AutoMigration(
+            from = 10,
+            to = 11,
+            spec = DatabaseX.Companion.MigrationSpec10to11::class
+        ),
+        AutoMigration(
+            from = 11,
+            to = 12,
+            spec = DatabaseX.Companion.MigrationSpec11to12::class
+        ),
+        AutoMigration(
+            from = 12,
+            to = 13,
+        ),
+        AutoMigration(
+            from = 13,
+            to = 14,
+            spec = DatabaseX.Companion.MigrationSpec13to14::class
+        ),
+        AutoMigration(
+            from = 14,
+            to = 15,
+            spec = DatabaseX.Companion.MigrationSpec14to15::class
+        ),
+        AutoMigration(
+            from = 15,
+            to = 16,
+        ),
+        AutoMigration(
+            from = 16,
+            to = 17,
+            spec = DatabaseX.Companion.MigrationSpec16to17::class
+        ),
+        AutoMigration(
+            from = 17,
+            to = 18,
+            spec = DatabaseX.Companion.MigrationSpec17to18::class
+        ),
+        AutoMigration(
+            from = 18,
+            to = 19,
+            spec = DatabaseX.Companion.MigrationSpec18to19::class
+        ),
+        AutoMigration(
+            from = 19,
+            to = 20,
+            spec = DatabaseX.Companion.MigrationSpec19to20::class
+        ),
+        AutoMigration(
+            from = 20,
+            to = 21,
+            spec = DatabaseX.Companion.MigrationSpec20to21::class
+        ),
+        AutoMigration(
+            from = 21,
+            to = 22,
+            spec = DatabaseX.Companion.MigrationSpec21to22::class
+        ),
+        AutoMigration(
+            from = 22,
+            to = 23,
+            spec = DatabaseX.Companion.MigrationSpec22to23::class
+        ),
+        AutoMigration(
+            from = 23,
+            to = 24,
+        ),
+        AutoMigration(
+            from = 24,
+            to = 25,
+            spec = DatabaseX.Companion.MigrationSpec24to25::class
+        ),
+        AutoMigration(
+            from = 25,
+            to = 26,
+            spec = DatabaseX.Companion.AutoMigration25to26::class
+        ),
+        AutoMigration(
+            from = 26,
+            to = 27,
+        ),
+        AutoMigration(
+            from = 27,
+            to = 28,
+            spec = DatabaseX.Companion.AutoMigration27to28::class
+        ),
+        AutoMigration(
+            from = 28,
+            to = 29,
+            spec = DatabaseX.Companion.AutoMigration28to29::class
+        ),
+        AutoMigration(
+            from = 29,
+            to = 30,
+            spec = DatabaseX.Companion.AutoMigration29to30::class
+        ),
+        AutoMigration(
+            from = 30,
+            to = 31,
+            spec = DatabaseX.Companion.AutoMigration30to31::class
+        ),
+        AutoMigration(
+            from = 31,
+            to = 1024,
+            spec = DatabaseX.Companion.ProductsCleanup::class
+        ),
+        AutoMigration(
+            from = 1024,
+            to = 1100,
+            spec = DatabaseX.Companion.RevampProductsToV2::class
+        ),
+        AutoMigration(
+            from = 1100,
+            to = 1101,
+        ),
+        AutoMigration(
+            from = 1101,
+            to = 1102,
+            spec = DatabaseX.Companion.AutoMigration1101to1102::class
+        ),
+        AutoMigration(
+            from = 1102,
+            to = 1105,
+        ),
+        AutoMigration(
+            from = 1105,
+            to = 1106,
+        ),
+        AutoMigration(
+            from = 1106,
+            to = 1107,
+            spec = DatabaseX.Companion.AutoMigration1106to1107::class
+        ),
+        AutoMigration(
+            from = 1107,
+            to = 1108,
+        ),
+        AutoMigration(
+            from = 1108,
+            to = 1201,
+            spec = DatabaseX.Companion.AutoMigration1108to1201::class
+        ),
+        AutoMigration(
+            from = 1201,
+            to = 1202,
+        ),
+        AutoMigration(
+            from = 1202,
+            to = 1203,
+            spec = DatabaseX.Companion.DownloadStatsCleanup::class
+        ),
+        AutoMigration(
+            from = 1203,
+            to = 1204,
+        ),
+        AutoMigration(
+            from = 1204,
+            to = 1205,
+            spec = DatabaseX.Companion.DownloadedCleanup::class
+        ),
+        AutoMigration(
+            from = 1205,
+            to = 1207,
+            spec = DatabaseX.Companion.AutoMigration1205to1207::class
+        ),
+        AutoMigration(
+            from = 1207,
+            to = 1208,
+        ),
+        AutoMigration(
+            from = 1208,
+            to = 1210,
+            spec = DatabaseX.Companion.AutoMigration1208to1210::class
+        ),
+        AutoMigration(
+            from = 1210,
+            to = 1211,
+        ),
+        AutoMigration(
+            from = 1211,
+            to = 1300,
+            spec = DatabaseX.Companion.ProductsCleanup::class
+        ),
+        AutoMigration(
+            from = 1300,
+            to = 1301,
+        ),
+        AutoMigration(
+            from = 1301,
+            to = 1302,
+        ),
+        AutoMigration(
+            from = 1302,
+            to = 1304,
+        ),
+    ]
+)
+@TypeConverters(Converters::class)
+abstract class DatabaseX : RoomDatabase() {
+    abstract fun getRepositoryDao(): RepositoryDao
+    abstract fun getProductDao(): ProductDao
+    abstract fun getReleaseDao(): ReleaseDao
+    abstract fun getCategoryDao(): CategoryDao
+    abstract fun getRepoCategoryDao(): RepoCategoryDao
+    abstract fun getAntiFeatureDao(): AntiFeatureDao
+    abstract fun getInstalledDao(): InstalledDao
+    abstract fun getExtrasDao(): ExtrasDao
+    abstract fun getDownloadedDao(): DownloadedDao
+    abstract fun getRBLogDao(): RBLogDao
+    abstract fun getDownloadStatsDao(): DownloadStatsDao
+    abstract fun getDownloadStatsFileDao(): DownloadStatsFileDao
+
+    // TODO replace external calls
+    abstract fun getReleaseTempDao(): ReleaseTempDao
+    abstract fun getProductTempDao(): ProductTempDao
+    abstract fun getCategoryTempDao(): CategoryTempDao
+    abstract fun getRepoCategoryTempDao(): RepoCategoryTempDao
+    abstract fun getAntiFeatureTempDao(): AntiFeatureTempDao
+    abstract fun getInstallTaskDao(): InstallTaskDao
+
+    companion object {
+        const val TAG = "DatabaseX"
+
+        val dbCreateCallback = object : Callback() {
+            override fun onCreate(db: SupportSQLiteDatabase) {
+                super.onCreate(db)
+                CoroutineScope(Dispatchers.IO).launch {
+                    val dao = get<RepositoryDao>(RepositoryDao::class.java)
+                    if (dao.getCount() == 0)
+                        dao.put(
+                            *(defaultRepositories + loadPresetRepos())
+                                .distinctBy(Repository::address)
+                                .toTypedArray()
+                        )
+                }
+            }
+        }
+
+        private fun loadPresetRepos(): List<Repository> =
+            persistentListOf("/system", "/product", "/vendor", "/odm", "/oem")
+                .mapNotNull { root ->
+                    // TODO use com.machiav3lli.fdroid or packageName when provided by OEMs
+                    val additionalReposFile =
+                        File("$root/etc/org.fdroid.fdroid/additional_repos.xml")
+                    try {
+                        if (additionalReposFile.isFile())
+                            Repository.parsePresetReposXML(additionalReposFile)
+                        else null
+                    } catch (e: Exception) {
+                        Log.e(
+                            TAG,
+                            "Preset Repositories: Failed loading additional repos from $additionalReposFile: ${e.message}"
+                        )
+                        null
+                    }
+                }.flatten()
+
+        class MigrationSpec8to9 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(8)
+            }
+        }
+
+        class MigrationSpec9to10 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(9)
+            }
+        }
+
+        class MigrationSpec10to11 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(10)
+            }
+        }
+
+        class MigrationSpec11to12 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(11)
+            }
+        }
+
+        class MigrationSpec13to14 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(13)
+            }
+        }
+
+        class MigrationSpec14to15 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(14)
+            }
+        }
+
+        class MigrationSpec16to17 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(16)
+            }
+        }
+
+        class MigrationSpec17to18 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(17)
+            }
+        }
+
+        class MigrationSpec18to19 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(18)
+            }
+        }
+
+        class MigrationSpec19to20 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(19)
+            }
+        }
+
+        class MigrationSpec20to21 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(20)
+            }
+        }
+
+        class MigrationSpec21to22 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(21)
+            }
+        }
+
+        class MigrationSpec22to23 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(22)
+            }
+        }
+
+        class MigrationSpec24to25 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(24)
+            }
+        }
+
+        @RenameColumn(tableName = TABLE_REPOSITORY, fromColumnName = "_id", toColumnName = ROW_ID)
+        @RenameTable(fromTableName = "ExodusInfo", toTableName = TABLE_EXODUS_INFO)
+        @RenameTable(fromTableName = "Tracker", toTableName = TABLE_TRACKER)
+        @RenameTable(fromTableName = "InstallTask", toTableName = TABLE_INSTALL_TASK)
+        class AutoMigration25to26 : AutoMigrationSpec
+
+        class AutoMigration27to28 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(27)
+            }
+        }
+
+        class AutoMigration28to29 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(28)
+            }
+        }
+
+        class AutoMigration29to30 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(29)
+            }
+        }
+
+        class AutoMigration30to31 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(30)
+            }
+        }
+
+        class AutoMigration1101to1102 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(1101)
+            }
+        }
+
+        class AutoMigration1106to1107 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(1106)
+            }
+        }
+
+        class AutoMigration1108to1201 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(1108)
+            }
+        }
+
+        class AutoMigration1205to1207 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(1205)
+            }
+        }
+
+        class AutoMigration1208to1210 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                onPostMigrate(1208)
+            }
+        }
+
+        class ProductsCleanup : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                GlobalScope.launch(Dispatchers.IO) {
+                    get<DatabaseX>(DatabaseX::class.java).apply {
+                        withTransaction {
+                            getProductDao().emptyTable()
+                            getCategoryDao().emptyTable()
+                            getReleaseDao().emptyTable()
+                            getDownloadedDao().emptyTable()
+                            // performClear(false, "product", "category", "release", "downloaded")
+                            getRepositoryDao().forgetLastModifications()
+                            // db.execSQL("UPDATE repository SET lastModified = '', entityTag = ''")
+                        }
+                    }
+                }
+            }
+        }
+
+        class DownloadStatsCleanup : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                GlobalScope.launch(Dispatchers.IO) {
+                    get<DatabaseX>(DatabaseX::class.java).apply {
+                        withTransaction {
+                            getDownloadStatsDao().emptyTable()
+                            getDownloadStatsFileDao().emptyTable()
+                        }
+                    }
+                }
+            }
+        }
+
+        class DownloadedCleanup : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                GlobalScope.launch(Dispatchers.IO) {
+                    get<DatabaseX>(DatabaseX::class.java).apply {
+                        withTransaction {
+                            getDownloadedDao().emptyTable()
+                        }
+                    }
+                }
+            }
+        }
+
+        @DeleteColumn(tableName = TABLE_INSTALLED, columnName = "signature")
+        @DeleteTable(tableName = "product")
+        @DeleteTable(tableName = "temporary_product")
+        @DeleteTable(tableName = "category")
+        @DeleteTable(tableName = "temporary_category")
+        class RevampProductsToV2 : AutoMigrationSpec {
+            override fun onPostMigrate(db: SupportSQLiteDatabase) {
+                super.onPostMigrate(db)
+                GlobalScope.launch(Dispatchers.IO) {
+                    get<DatabaseX>(DatabaseX::class.java).apply {
+                        withTransaction {
+                            getRepositoryDao().emptyTable()
+                            getRepositoryDao().put(*defaultRepositories.toTypedArray())
+                            getDownloadedDao().emptyTable()
+                            getInstallTaskDao().emptyTable()
+                            getReleaseDao().emptyTable()
+                        }
+                    }
+                }
+            }
+        }
+
+        fun onPostMigrate(from: Int) {
+            val addRps = when (from) {
+                8    -> addedReposV9
+                9    -> addedReposV10
+                10   -> addedReposV11
+                11   -> addedReposV12
+                13   -> addedReposV14
+                14   -> addedReposV15
+                16   -> addedReposV17
+                17   -> addedReposV18
+                18   -> addedReposV19
+                19   -> addedReposV20
+                20   -> addedReposV21
+                21   -> addedReposV22
+                22   -> addedReposV23
+                28   -> addedReposV29
+                29   -> addedReposV30
+                1101 -> addedReposV1102
+                1106 -> addedReposV1107
+                1108 -> updatedReposV1201
+                1205 -> addedReposV1207
+                1208 -> addedReposV1210
+                else -> emptyList()
+            }
+            val rmRps = when (from) {
+                24   -> archiveRepos
+                27   -> removedReposV28
+                28   -> removedReposV29
+                30   -> removedReposV31
+                1106 -> removedReposV1107
+                1108 -> updatedReposV1201 + removedReposV1201
+                1208 -> removedReposV1210
+                else -> emptyList()
+            }
+            GlobalScope.launch(Dispatchers.IO) {
+                get<DatabaseX>(DatabaseX::class.java).apply {
+                    rmRps.forEach {
+                        enableRepo(it, false)
+                        getRepositoryDao().deleteByAddress(it.address)
+                    }
+                    getRepositoryDao().put(*addRps.toTypedArray())
+                    if (from == 20) getDownloadedDao().emptyTable()
+                }
+            }
+        }
+    }
+
+    suspend fun cleanUp(vararg pairs: Pair<Long, Boolean>) {
+        withTransaction {
+            pairs.forEach { (id, enabled) ->
+                getProductDao().deleteById(id)
+                getCategoryDao().deleteById(id)
+                getReleaseDao().deleteById(id)
+                if (enabled) getRepositoryDao().deleteById(id)
+            }
+        }
+    }
+
+    suspend fun cleanUp(pairs: Set<Pair<Long, Boolean>>) = cleanUp(*pairs.toTypedArray())
+
+    suspend fun finishTemporary(repository: Repository, success: Boolean) {
+        withTransaction {
+            if (success) {
+                getProductDao().deleteById(repository.id)
+                getCategoryDao().deleteById(repository.id)
+                getRepoCategoryDao().deleteByRepoId(repository.id)
+                getAntiFeatureDao().deleteByRepoId(repository.id)
+                getReleaseDao().deleteById(repository.id)
+                getProductDao().insert(*(getProductTempDao().getAll()))
+                getCategoryDao().insert(*(getCategoryTempDao().getAll()))
+                getRepoCategoryDao().insert(*(getRepoCategoryTempDao().getAll()))
+                getAntiFeatureDao().insert(*(getAntiFeatureTempDao().getAll()))
+                getReleaseDao().insert(*(getReleaseTempDao().getAll()))
+                getRepositoryDao().put(repository)
+            }
+            getProductTempDao().emptyTable()
+            getCategoryTempDao().emptyTable()
+            getRepoCategoryTempDao().emptyTable()
+            getAntiFeatureTempDao().emptyTable()
+            getReleaseTempDao().emptyTable()
+            // performClear(false, "product_temp", "category_temp", "release_temp")
+        }
+    }
+}
+
+private fun createDatabase(context: Context): DatabaseX = Room.databaseBuilder(
+    context,
+    DatabaseX::class.java,
+    "main_database.db"
+)
+    .addCallback(dbCreateCallback)
+    .fallbackToDestructiveMigration(true)
+    .build()
+
+val databaseModule = module {
+    singleOf(::createDatabase)
+    single { get<DatabaseX>().getRepositoryDao() }
+    single { get<DatabaseX>().getProductDao() }
+    single { get<DatabaseX>().getReleaseDao() }
+    single { get<DatabaseX>().getReleaseTempDao() }
+    single { get<DatabaseX>().getProductTempDao() }
+    single { get<DatabaseX>().getCategoryDao() }
+    single { get<DatabaseX>().getCategoryTempDao() }
+    single { get<DatabaseX>().getRepoCategoryDao() }
+    single { get<DatabaseX>().getRepoCategoryTempDao() }
+    single { get<DatabaseX>().getAntiFeatureDao() }
+    single { get<DatabaseX>().getAntiFeatureTempDao() }
+    single { get<DatabaseX>().getInstalledDao() }
+    single { get<DatabaseX>().getExtrasDao() }
+    single { get<DatabaseX>().getDownloadedDao() }
+    single { get<DatabaseX>().getInstallTaskDao() }
+    single { get<DatabaseX>().getRBLogDao() }
+    single { get<DatabaseX>().getDownloadStatsDao() }
+    single { get<DatabaseX>().getDownloadStatsFileDao() }
+}

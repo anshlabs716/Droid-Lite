@@ -1,0 +1,5 @@
+* Tambah Tema AMOLED
+* Tambah Pemasang Root Senyap
+* Tambah Bahasa Berikut: -
+     * Portugis
+     * Cina

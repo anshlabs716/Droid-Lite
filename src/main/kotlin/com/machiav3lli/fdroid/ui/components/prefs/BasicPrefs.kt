@@ -1,0 +1,536 @@
+package com.machiav3lli.fdroid.ui.components.prefs
+
+import androidx.annotation.StringRes
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.machiav3lli.fdroid.R
+import com.machiav3lli.fdroid.data.content.BooleanPrefsMeta
+import com.machiav3lli.fdroid.data.content.NonBooleanPrefsMeta
+import com.machiav3lli.fdroid.data.content.Preferences
+import com.machiav3lli.fdroid.data.content.PrefsDependencies
+import com.machiav3lli.fdroid.data.content.PrefsEntries
+import com.machiav3lli.fdroid.data.entity.PermissionWeights
+import com.machiav3lli.fdroid.ui.compose.utils.addIf
+import com.machiav3lli.fdroid.utils.Utils
+import com.machiav3lli.fdroid.utils.Utils.getLocaleOfCode
+import com.machiav3lli.fdroid.utils.Utils.themeSummary
+import com.topjohnwu.superuser.Shell
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+
+@Composable
+fun BasePreference(
+    modifier: Modifier = Modifier,
+    @StringRes titleId: Int,
+    @StringRes summaryId: Int = -1,
+    summary: String? = null,
+    isEnabled: Boolean = true,
+    index: Int = 0,
+    groupSize: Int = 1,
+    startWidget: (@Composable () -> Unit)? = null,
+    endWidget: (@Composable () -> Unit)? = null,
+    bottomWidget: (@Composable () -> Unit)? = null,
+    interactionSource: MutableInteractionSource? = null,
+    onClick: (() -> Unit)? = null,
+) {
+    val base = index.toFloat() / groupSize
+    val rank = (index + 1f) / groupSize
+
+    ListItem(
+        modifier = modifier
+            .fillMaxWidth()
+            .addIf(!isEnabled) {
+                alpha(0.3f)
+            },
+        onClick = onClick ?: {},
+        enabled = isEnabled,
+        interactionSource = interactionSource,
+        shapes = ListItemDefaults.shapes(
+            shape = RoundedCornerShape(
+                topStart = if (base == 0f) MaterialTheme.shapes.large.topStart
+                else MaterialTheme.shapes.extraSmall.topStart,
+                topEnd = if (base == 0f) MaterialTheme.shapes.large.topEnd
+                else MaterialTheme.shapes.extraSmall.topEnd,
+                bottomStart = if (rank == 1f) MaterialTheme.shapes.large.bottomStart
+                else MaterialTheme.shapes.extraSmall.bottomStart,
+                bottomEnd = if (rank == 1f) MaterialTheme.shapes.large.bottomEnd
+                else MaterialTheme.shapes.extraSmall.bottomEnd
+            )
+        ),
+        colors = ListItemDefaults.colors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
+        leadingContent = startWidget,
+        content = {
+            Text(
+                text = stringResource(id = titleId),
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.titleMedium,
+                fontSize = 16.sp
+            )
+        },
+        supportingContent = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (summaryId != -1 || summary != null) {
+                    Text(
+                        text = summary ?: stringResource(id = summaryId),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                bottomWidget?.let { it() }
+            }
+        },
+        trailingContent = endWidget
+    )
+}
+
+@Composable
+fun SwitchPreference(
+    modifier: Modifier = Modifier,
+    prefKey: Preferences.Key<Boolean>,
+    index: Int = 0,
+    groupSize: Int = 1,
+    onCheckedChange: ((Boolean) -> Unit) = {},
+) {
+    val context = LocalContext.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val (checked, check) = remember(Preferences[prefKey]) { mutableStateOf(Preferences[prefKey]) }
+    val dependency = PrefsDependencies[prefKey]
+    var isEnabled by remember {
+        mutableStateOf(
+            dependency?.let { Preferences[dependency.first] in dependency.second }
+                ?: true
+        )
+    }
+
+    SideEffect {
+        CoroutineScope(Dispatchers.Default).launch {
+            Preferences.addPreferencesChangeListener {
+                when (it) {
+                    dependency?.first -> isEnabled = Preferences[it] in dependency.second
+                    else              -> {}
+                }
+            }
+        }
+    }
+
+    BasePreference(
+        modifier = modifier,
+        titleId = BooleanPrefsMeta[prefKey]?.first ?: -1,
+        summaryId = BooleanPrefsMeta[prefKey]?.second ?: -1,
+        index = index,
+        groupSize = groupSize,
+        isEnabled = isEnabled,
+        onClick = {
+            onCheckedChange(!checked)
+            Preferences[prefKey] = !checked
+            check(!checked)
+        },
+        startWidget = BooleanPrefsMeta[prefKey]?.third?.let {
+            {
+                Icon(
+                    imageVector = it,
+                    contentDescription = stringResource(
+                        id = BooleanPrefsMeta[prefKey]?.first ?: -1
+                    ),
+                )
+            }
+        },
+        endWidget = {
+            Switch(
+                checked = checked,
+                interactionSource = interactionSource,
+                onCheckedChange = {
+                    onCheckedChange(it)
+                    Preferences[prefKey] = it
+                    check(it)
+                },
+                enabled = isEnabled,
+            )
+        },
+        interactionSource = interactionSource,
+    )
+}
+
+@Composable
+fun LanguagePreference(
+    modifier: Modifier = Modifier,
+    prefKey: Preferences.Key<String>,
+    index: Int = 1,
+    groupSize: Int = 1,
+    onClick: (() -> Unit) = {},
+) {
+    val context = LocalContext.current
+    val dependency = PrefsDependencies[prefKey]
+    var isEnabled by remember {
+        mutableStateOf(
+            dependency?.let { Preferences[dependency.first] in dependency.second }
+                ?: true)
+    }
+
+    SideEffect {
+        CoroutineScope(Dispatchers.Default).launch {
+            Preferences.addPreferencesChangeListener {
+                when (it) {
+                    dependency?.first -> isEnabled = Preferences[it] in dependency.second
+                    else              -> {}
+                }
+            }
+        }
+    }
+
+    BasePreference(
+        modifier = modifier,
+        titleId = NonBooleanPrefsMeta[prefKey]?.first ?: -1,
+        summary = Utils.translateLocale(context.getLocaleOfCode(Preferences[prefKey])),
+        index = index,
+        groupSize = groupSize,
+        isEnabled = isEnabled,
+        startWidget = NonBooleanPrefsMeta[prefKey]?.second?.let {
+            {
+                Icon(
+                    imageVector = it,
+                    contentDescription = stringResource(
+                        id = NonBooleanPrefsMeta[prefKey]?.first ?: -1
+                    ),
+                )
+            }
+        },
+        onClick = onClick
+    )
+}
+
+@Composable
+fun ThemePreference(
+    modifier: Modifier = Modifier,
+    prefKey: Preferences.Key<Preferences.NeoTheme>,
+    index: Int = 1,
+    groupSize: Int = 1,
+    onClick: (() -> Unit) = {},
+) {
+    val context = LocalContext.current
+    val dependency = PrefsDependencies[prefKey]
+    var isEnabled by remember {
+        mutableStateOf(
+            dependency?.let { Preferences[dependency.first] in dependency.second }
+                ?: true)
+    }
+
+    SideEffect {
+        CoroutineScope(Dispatchers.Default).launch {
+            Preferences.addPreferencesChangeListener {
+                when (it) {
+                    dependency?.first -> isEnabled = Preferences[it] in dependency.second
+                    else              -> {}
+                }
+            }
+        }
+    }
+
+    BasePreference(
+        modifier = modifier,
+        titleId = NonBooleanPrefsMeta[prefKey]?.first ?: -1,
+        summary = context.themeSummary(Preferences[prefKey]),
+        index = index,
+        groupSize = groupSize,
+        isEnabled = isEnabled,
+        startWidget = NonBooleanPrefsMeta[prefKey]?.second?.let {
+            {
+                Icon(
+                    imageVector = it,
+                    contentDescription = stringResource(
+                        id = NonBooleanPrefsMeta[prefKey]?.first ?: -1
+                    ),
+                )
+            }
+        },
+        onClick = onClick
+    )
+}
+
+@Composable
+fun PermissionWeightsPreference(
+    modifier: Modifier = Modifier,
+    prefKey: Preferences.Key<PermissionWeights>,
+    index: Int = 1,
+    groupSize: Int = 1,
+    onClick: (() -> Unit) = {},
+) {
+    val context = LocalContext.current
+    val dependency = PrefsDependencies[prefKey]
+    var isEnabled by remember {
+        mutableStateOf(
+            dependency?.let { Preferences[dependency.first] in dependency.second }
+                ?: true)
+    }
+
+    SideEffect {
+        CoroutineScope(Dispatchers.Default).launch {
+            Preferences.addPreferencesChangeListener {
+                when (it) {
+                    dependency?.first -> isEnabled = Preferences[it] in dependency.second
+                    else              -> {}
+                }
+            }
+        }
+    }
+
+    BasePreference(
+        modifier = modifier,
+        titleId = NonBooleanPrefsMeta[prefKey]?.first ?: -1,
+        summary = stringResource(
+            when (Preferences[prefKey]) {
+                PermissionWeights.DEFAULT -> R.string.weights_default
+                else                      -> R.string.weights_customized
+            }
+        ),
+        index = index,
+        groupSize = groupSize,
+        isEnabled = isEnabled,
+        startWidget = NonBooleanPrefsMeta[prefKey]?.second?.let {
+            {
+                Icon(
+                    imageVector = it,
+                    contentDescription = stringResource(
+                        id = NonBooleanPrefsMeta[prefKey]?.first ?: -1
+                    ),
+                )
+            }
+        },
+        onClick = onClick
+    )
+}
+
+@Composable
+fun LaunchPreference(
+    modifier: Modifier = Modifier,
+    prefKey: Preferences.Key<String>,
+    index: Int = 1,
+    groupSize: Int = 1,
+    onClick: (() -> Unit) = {},
+) {
+    val context = LocalContext.current
+    val dependency = PrefsDependencies[prefKey]
+    var isEnabled by remember {
+        mutableStateOf(
+            dependency?.let { Preferences[dependency.first] in dependency.second }
+                ?: true)
+    }
+    var prefValue by remember {
+        mutableStateOf(Preferences[prefKey])
+    }
+
+    SideEffect {
+        CoroutineScope(Dispatchers.Default).launch {
+            Preferences.addPreferencesChangeListener {
+                when (it) {
+                    prefKey           -> prefValue = Preferences[prefKey]
+                    dependency?.first -> isEnabled = Preferences[it] in dependency.second
+                    else              -> {}
+                }
+            }
+        }
+    }
+
+    BasePreference(
+        modifier = modifier,
+        titleId = NonBooleanPrefsMeta[prefKey]?.first ?: -1,
+        summary = prefValue,
+        index = index,
+        groupSize = groupSize,
+        isEnabled = isEnabled,
+        startWidget = NonBooleanPrefsMeta[prefKey]?.second?.let {
+            {
+                Icon(
+                    imageVector = it,
+                    contentDescription = stringResource(
+                        id = NonBooleanPrefsMeta[prefKey]?.first ?: -1
+                    ),
+                )
+            }
+        },
+        onClick = onClick
+    )
+}
+
+@Composable
+fun EnumPreference(
+    modifier: Modifier = Modifier,
+    prefKey: Preferences.Key<Preferences.Enumeration<*>>,
+    index: Int = 1,
+    groupSize: Int = 1,
+    onClick: (() -> Unit) = {},
+) {
+    val dependency = PrefsDependencies[prefKey]
+    var isEnabled by remember {
+        mutableStateOf(
+            dependency?.let { Preferences[dependency.first] in dependency.second }
+                ?: true)
+    }
+    var prefValue by remember {
+        mutableStateOf(Preferences[prefKey])
+    }
+    SideEffect {
+        CoroutineScope(Dispatchers.Default).launch {
+            Preferences.addPreferencesChangeListener {
+                when (it) {
+                    Preferences.Key.Installer -> {
+                        prefValue = Preferences[prefKey]
+                        if (prefValue == Preferences.Installer.Root && Shell.isAppGrantedRoot() != true) {
+                            Shell.getShell().isRoot
+                        }
+                    }
+
+                    prefKey                   -> prefValue = Preferences[prefKey]
+                    dependency?.first         -> isEnabled = Preferences[it] in dependency.second
+                    else                      -> {}
+                }
+            }
+        }
+    }
+
+    BasePreference(
+        modifier = modifier,
+        titleId = NonBooleanPrefsMeta[prefKey]?.first ?: -1,
+        summary = stringResource(id = PrefsEntries[prefKey]?.get(prefValue) ?: -1),
+        index = index,
+        groupSize = groupSize,
+        isEnabled = isEnabled,
+        startWidget = NonBooleanPrefsMeta[prefKey]?.second?.let {
+            {
+                Icon(
+                    imageVector = it,
+                    contentDescription = stringResource(
+                        id = NonBooleanPrefsMeta[prefKey]?.first ?: -1
+                    ),
+                )
+            }
+        },
+        onClick = onClick
+    )
+}
+
+@Composable
+fun IntPreference(
+    modifier: Modifier = Modifier,
+    prefKey: Preferences.Key<Int>,
+    index: Int = 1,
+    groupSize: Int = 1,
+    onClick: (() -> Unit) = {},
+) {
+    val dependency = PrefsDependencies[prefKey]
+    var isEnabled by remember {
+        mutableStateOf(
+            dependency?.let { Preferences[dependency.first] in dependency.second }
+                ?: true)
+    }
+    var prefValue by remember {
+        mutableStateOf(Preferences[prefKey])
+    }
+    SideEffect {
+        CoroutineScope(Dispatchers.Default).launch {
+            Preferences.addPreferencesChangeListener {
+                when (it) {
+                    prefKey           -> prefValue = Preferences[prefKey]
+                    dependency?.first -> isEnabled = Preferences[it] in dependency.second
+                    else              -> {}
+                }
+            }
+        }
+    }
+
+    BasePreference(
+        modifier = modifier,
+        titleId = NonBooleanPrefsMeta[prefKey]?.first ?: -1,
+        summary = prefValue.toString(),
+        index = index,
+        groupSize = groupSize,
+        isEnabled = isEnabled,
+        startWidget = NonBooleanPrefsMeta[prefKey]?.second?.let {
+            {
+                Icon(
+                    imageVector = it,
+                    contentDescription = stringResource(
+                        id = NonBooleanPrefsMeta[prefKey]?.first ?: -1
+                    ),
+                )
+            }
+        },
+        onClick = onClick
+    )
+}
+
+@Composable
+fun StringPreference(
+    modifier: Modifier = Modifier,
+    prefKey: Preferences.Key<String>,
+    index: Int = 1,
+    groupSize: Int = 1,
+    onClick: (() -> Unit) = {},
+) {
+    val dependency = PrefsDependencies[prefKey]
+    var isEnabled by remember {
+        mutableStateOf(
+            dependency?.let { Preferences[dependency.first] in dependency.second }
+                ?: true)
+    }
+    var prefValue by remember {
+        mutableStateOf(Preferences[prefKey])
+    }
+    SideEffect {
+        CoroutineScope(Dispatchers.Default).launch {
+            Preferences.addPreferencesChangeListener {
+                when (it) {
+                    prefKey           -> prefValue = Preferences[prefKey]
+                    dependency?.first -> isEnabled = Preferences[it] in dependency.second
+                    else              -> {}
+                }
+            }
+        }
+    }
+
+    BasePreference(
+        modifier = modifier,
+        titleId = NonBooleanPrefsMeta[prefKey]?.first ?: -1,
+        summary = prefValue,
+        index = index,
+        groupSize = groupSize,
+        isEnabled = isEnabled,
+        startWidget = NonBooleanPrefsMeta[prefKey]?.second?.let {
+            {
+                Icon(
+                    imageVector = it,
+                    contentDescription = stringResource(
+                        id = NonBooleanPrefsMeta[prefKey]?.first ?: -1
+                    ),
+                )
+            }
+        },
+        onClick = onClick
+    )
+}

@@ -1,0 +1,8 @@
+Tambah: Pengunduhan dan sinkronisasi paralel
+Tambah: Ekspor-impor aplikasi dan repositori yang diinstal
+Tambah: +50 repositori baru
+Tambah: Mode anak
+Perbaiki: Memanggil alamat Tor
+Pembaruan: Ubah seluruh UI
+Pembaruan: Tingkatkan pengaturan nilai dialog preferensi
++ jauh lebih banyak di lebih dari 440 komitmen & 380 kontribusi terjemahan

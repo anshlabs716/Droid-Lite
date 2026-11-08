@@ -1,0 +1,8 @@
+Aggiunto: Download e sincronizzazione paralleli
+Aggiunto: Esportazione/importazione di app e repository installati
+Aggiunto: +50 nuovi repository
+Aggiunto: Modalità bambini
+Corretto: Chiamata agli indirizzi Tor
+Aggiornato: Rinnovata l'intera interfaccia utente
+Aggiornato: Migliorata l'impostazione del valore della finestra di dialogo delle preferenze
+e molto altro in più di 440 commit e 380 contributi di traduzione

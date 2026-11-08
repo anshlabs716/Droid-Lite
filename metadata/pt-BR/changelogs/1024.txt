@@ -1,0 +1,7 @@
+Adicionado: Suporte a links de vídeo e capturas de TV e wearables
+Adicionado: Aviso de sincronização inicial no primeiro uso
+Corrigido: Não mostrar instalação em pacotes sem suporte a compartilhamento
+Corrigido: Análise e exibição de links Litecoin e Liberapay
+Atualizado: Melhor confiabilidade do instalador
+Removido: Análise de links de doação Flattr
+Mais de 20 commits e 80 contribuições de tradução

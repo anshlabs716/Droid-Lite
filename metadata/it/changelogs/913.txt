@@ -1,0 +1,7 @@
+Aggiunto: Categoria Preferiti
+Aggiunto: Opzione per impostare l'intervallo di sincronizzazione
+Aggiunto: Supporto per l'importazione automatica di fdroidrepos: indirizzi repository dagli appunti
+Corretto: Scorrimento nidificato di AppSheet
+Corretto: Le app del repository contano
+Corretto: Consenti la conservazione dell'apk fino a "consumato"
+Aggiornato: Rendi selezionabile la descrizione dell'app/il testo del registro delle modifiche

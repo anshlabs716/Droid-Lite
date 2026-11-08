@@ -1,0 +1,90 @@
+package com.machiav3lli.fdroid.data.repository
+
+import com.machiav3lli.fdroid.data.database.dao.DownloadStatsDao
+import com.machiav3lli.fdroid.data.database.dao.DownloadStatsFileDao
+import com.machiav3lli.fdroid.data.database.dao.RBLogDao
+import com.machiav3lli.fdroid.data.database.entity.ClientPackageSum
+import com.machiav3lli.fdroid.data.database.entity.DownloadStats
+import com.machiav3lli.fdroid.data.database.entity.DownloadStatsFileMetadata
+import com.machiav3lli.fdroid.data.database.entity.MonthlyPackageSum
+import com.machiav3lli.fdroid.data.database.entity.PackageSum
+import com.machiav3lli.fdroid.data.database.entity.RBLog
+import com.machiav3lli.fdroid.utils.extension.text.getIsoDateOfMonthsAgo
+import com.machiav3lli.fdroid.utils.extension.text.isoDateToInt
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.mapLatest
+import org.koin.dsl.module
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class PrivacyRepository(
+    private val rbDao: RBLogDao,
+    private val downloadStatsDao: DownloadStatsDao,
+    private val dsFileDao: DownloadStatsFileDao,
+) {
+    fun getRBLogs(packageName: String): Flow<List<RBLog>> = rbDao.getFlow(packageName)
+
+    fun getRBLogsMap(packageName: String): Flow<Map<String, RBLog>> = rbDao.getFlow(packageName)
+        .mapLatest { list ->
+            list.groupBy(RBLog::hash)
+                .mapValues { (_, rbDataList) -> rbDataList.maxByOrNull(RBLog::timestamp)!! }
+        }
+
+    fun getDownloadStats(packageName: String): Flow<List<DownloadStats>> =
+        downloadStatsDao.getFlow(packageName)
+
+    fun getLatestDownloadStats(packageName: String): Flow<List<DownloadStats>> =
+        downloadStatsDao.getFlowSince(packageName, getIsoDateOfMonthsAgo(3).isoDateToInt())
+
+    fun getSumDownloadStats(packageName: String): Flow<PackageSum> =
+        downloadStatsDao.getFlowPackageSum(packageName)
+
+    fun getSumDownloadOrder(packageName: String): Flow<Int> =
+        downloadStatsDao.getFlowPackageSumOrder(packageName)
+
+    fun getSumDownloadOrderLegacy(packageName: String): Flow<Int> =
+        downloadStatsDao.getFlowPackageSumOrderLegacy(packageName)
+
+    fun getClientSumDownloadStats(packageName: String): Flow<List<ClientPackageSum>> =
+        downloadStatsDao.getFlowClientSumForPackage(packageName)
+
+    fun getMonthlyDownloadStats(packageName: String): Flow<List<MonthlyPackageSum>> =
+        downloadStatsDao.getFlowMonthlySumForPackage(packageName)
+
+    suspend fun loadDownloadStatsModifiedMap(): Map<String, String> =
+        dsFileDao.getLastModifiedDates()
+
+    suspend fun loadRBLogs(packageName: String): List<RBLog> = rbDao.get(packageName)
+
+    suspend fun upsertRBLogs(logs: Collection<RBLog>) {
+        rbDao.multipleUpserts(logs.toList())
+    }
+
+    suspend fun upsertDownloadStats(downloadStats: Collection<DownloadStats>) {
+        downloadStatsDao.upsert(*downloadStats.toTypedArray())
+    }
+
+    suspend fun upsertDownloadStatsFileMetadata(metadata: Collection<DownloadStatsFileMetadata>) {
+        dsFileDao.multipleUpserts(metadata)
+    }
+
+    suspend fun upsertDownloadStatsFileMetadata(
+        fileName: String,
+        lastModified: String,
+        fileSize: Long? = null,
+        recordsCount: Int? = null
+    ) {
+        val metadata = DownloadStatsFileMetadata(
+            fileName = fileName,
+            lastModified = lastModified,
+            lastFetched = System.currentTimeMillis(),
+            fetchSuccess = true,
+            fileSize = fileSize,
+            recordsCount = recordsCount,
+        )
+        dsFileDao.upsert(metadata)
+    }
+}
+
+val privacyModule = module {
+}

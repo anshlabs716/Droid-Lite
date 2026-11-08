@@ -1,0 +1,6 @@
+- Aggiornato: Design a MD3
+- Aggiornato: Migliori screenshots UX
+- Corretto: Blocco durante l'installazione dell'applicazione con il metodo root
+- Aggiornato: Pprofili tematici rinnovati
+- Aggiunto: Condivisione di collegamenti (per ora solo F-Droid ufficiale)
+- Altre piccole correzioni UI/UX
