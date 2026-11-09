@@ -344,7 +344,7 @@ data object Preferences : OnSharedPreferenceChangeListener {
 
         data object AutoSync : Key<Preferences.AutoSync>(
             "auto_sync",
-            Value.EnumerationValue(Preferences.AutoSync.Wifi)
+            Value.EnumerationValue(Preferences.AutoSync.Never)
         )
 
         data object EnableDownloadDirectory :
@@ -399,7 +399,7 @@ data object Preferences : OnSharedPreferenceChangeListener {
 
         data object RBProvider : Key<Preferences.RBProvider>(
             "rb_provider", Value.EnumerationValue(
-                Preferences.RBProvider.IzzyOnDroid
+                Preferences.RBProvider.None
             )
         )
 

@@ -10,3 +10,7 @@ local.properties
 src/main/jniLibs/
 release/
 neo/
+
+keystore.properties
+*.keystore
+*.jks
