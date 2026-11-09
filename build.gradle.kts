@@ -91,7 +91,10 @@ android {
                 "/META-INF/**.kotlin_module",
                 "/META-INF/**.pro",
                 "/META-INF/**.version", // comment out to enable layout inspector
-                "/okhttp3/internal/publicsuffix/*"
+                "META-INF/*.LICENSE.txt",
+                "META-INF/DEPENDENCIES",
+                "META-INF/versions/9/OSGI-INF/MANIFEST.MF",
+                "PublicSuffixDatabase.list",
             )
         }
     }
