@@ -2,6 +2,10 @@
 <resources>
     <!-- Droid-Lite brand -->
     <color name="dl_background">#FAFDFB</color>
+    <color name="dl_primary_container">#B2DFDB</color>
+    <color name="dl_on_primary_container">#00251E</color>
+    <color name="dl_surface">#FAFDFB</color>
+    <color name="dl_on_surface">#3F4947</color>
     <color name="dl_primary">#00695C</color>
 
     <!-- launcher -->
