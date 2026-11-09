@@ -21,4 +21,4 @@ dependencyResolutionManagement {
         //maven(url = "https://androidx.dev/snapshots/builds/13508953/artifacts/repository") // FOR jetpack SNAPSHOT ONLY
     }
 }
-rootProject.name = "Neo Store"
+rootProject.name = "Droid-Lite"

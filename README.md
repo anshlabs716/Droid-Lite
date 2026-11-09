@@ -8,7 +8,7 @@
 
 [![License: GPLv3](https://img.shields.io/badge/License-GPLv3-F05032?style=for-the-badge&logo=gnu&logoColor=white)](./COPYING)
 [![Based on Neo Store](https://img.shields.io/badge/Based_on-Neo_Store-00AA44?style=for-the-badge&logo=android&logoColor=white)](https://github.com/NeoApplications/Neo-Store)
-[![Target APK](https://img.shields.io/badge/APK_target-%3C5MB-3DDC84?style=for-the-badge&logo=android&logoColor=white)](#-apk-size)
+[![APK 3.36 MiB](https://img.shields.io/badge/APK-3.36_MiB-3DDC84?style=for-the-badge&logo=android&logoColor=white)](TESTING.md)
 
 </div>
 
@@ -57,6 +57,18 @@ echo "sdk.dir=/path/to/android-sdk" > local.properties
 ```
 
 APK: `build/outputs/apk/release/`
+
+---
+
+## 📊 Size
+
+| | Compressed APK |
+|---|---|
+| Neo Store (baseline) | 5.58 MiB |
+| **Droid-Lite** | **3.36 MiB** |
+| Reduction | **−39.8 %** |
+
+See [TESTING.md](./TESTING.md) and [AUDIT.md](./AUDIT.md) for the full breakdown.
 
 ---
 
